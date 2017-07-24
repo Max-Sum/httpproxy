@@ -10,8 +10,10 @@ import (
 func main() {
 	pxy := proxy.NewProxyServer()
 	web := proxy.NewWebServer()
+	pln := proxy.NewProxyListener()
+	wln := proxy.NewWebListener()
 
-	go http.ListenAndServe(web.Port, web)
+	go http.Serve(wln, web)
 	log.Println("begin proxy")
-	log.Fatal(pxy.ListenAndServe())
+	log.Fatal(pxy.Serve(pln))
 }

@@ -28,8 +28,7 @@ func NewProxyServer() *http.Server {
 	}
 
 	return &http.Server{
-		Addr:           cnfg.Port,
-		Handler:        &ProxyServer{Tr: &http.Transport{Proxy: http.ProxyFromEnvironment, DisableKeepAlives: true}},
+		Handler:        &ProxyServer{Tr: &http.Transport{Proxy: http.ProxyFromEnvironment}},
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,
@@ -109,6 +108,8 @@ func (proxy *ProxyServer) HttpsHandler(rw http.ResponseWriter, req *http.Request
 		http.Error(rw, "Failed", http.StatusBadRequest)
 		return
 	}
+	// 提前发送200，减少RTT时间
+	client.Write(HTTP_200)
 
 	remote, err := net.Dial("tcp", req.URL.Host) //建立服务端和代理服务器的tcp连接
 	if err != nil {
@@ -117,8 +118,6 @@ func (proxy *ProxyServer) HttpsHandler(rw http.ResponseWriter, req *http.Request
 		client.Close()
 		return
 	}
-
-	client.Write(HTTP_200)
 
 	go copyRemoteToClient(proxy.User, remote, client)
 	go copyRemoteToClient(proxy.User, client, remote)

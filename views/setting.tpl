@@ -2,9 +2,9 @@
 <h1 class="compact">设置列表</h1>
 <form accept-charset="UTF-8" id="new_config">
 	<div id="field">
-	<label for="port">端口</label><span> [Read only]</span>
+	<label for="listen">监听地址</label><span> [Read only]</span>
 	<br />
-	<input type="text" id="port" name="port" value="{{.Port}}" readonly="" size="30"/>
+	<input type="text" id="listen" name="listen" value="{{.Listen}}" readonly="" size="30"/>
 	</div>
 	<div id="field">
 	<label for="auth">是否开启反向代理</label><span> [true/false]</span>

@@ -11,12 +11,10 @@ import (
 	"httpproxy/config"
 )
 
-type WebServer struct {
-	Port string
-}
+type WebServer struct {}
 
 func NewWebServer() *WebServer {
-	return &WebServer{Port: cnfg.WebPort}
+	return &WebServer{}
 }
 
 // ServeHTTP handles web admin pages

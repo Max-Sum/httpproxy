@@ -11,10 +11,10 @@ import (
 // Config 保存代理服务器的配置
 type Config struct {
 	// 代理服务器工作端口,eg:":8080"
-	Port string `json:"port"`
+	Listen string `json:"listen"`
 
 	// web管理端口
-	WebPort string `json:"webport"`
+	WebListen string `json:"weblisten"`
 
 	// 反向代理标志
 	Reverse bool `json:"reverse"`
@@ -24,6 +24,9 @@ type Config struct {
 
 	// 认证标志
 	Auth bool `json:"auth"`
+	
+	// 认证失败时将请求发送到 failover (明文发送)
+	Failover string `json:"failover"`
 
 	// 缓存标志
 	Cache bool `json:"cache"`
