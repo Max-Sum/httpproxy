@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"os"
 	"crypto/tls"
 	"net"
 	"net/url"
@@ -36,15 +37,21 @@ func NewProxyListener() net.Listener {
 			},
 		}
 		switch listen.Scheme {
-		case "unix", "tcp":
-			ln, err = tls.Listen(listen.Scheme, listen.Host + listen.Path, config)
+		case "unix":
+			ln, err = tls.Listen("unix", listen.Host + listen.Path, config)
+			if err1 := os.Chmod(listen.Host + listen.Path, 0666); err1 != nil {
+				log.Fatal(err1)
+			}
 		default:
 			ln, err = tls.Listen("tcp", listen.Host, config)
 		}
 	} else {
 		switch listen.Scheme {
-		case "unix", "tcp":
+		case "unix":
 			ln, err = net.Listen(listen.Scheme, listen.Host + listen.Path)
+			if err1 := os.Chmod(listen.Host + listen.Path, 0666); err1 != nil {
+				log.Fatal(err1)
+			}
 		default:
 			ln, err = net.Listen("tcp", listen.Host)
 		}
@@ -88,15 +95,21 @@ func NewWebListener() net.Listener {
 			},
 		}
 		switch listen.Scheme {
-		case "unix", "tcp":
+		case "unix":
 			ln, err = tls.Listen(listen.Scheme, listen.Host + listen.Path, config)
+			if err1 := os.Chmod(listen.Host + listen.Path, 0666); err1 != nil {
+				log.Fatal(err1)
+			}
 		default:
 			ln, err = tls.Listen("tcp", listen.Host, config)
 		}
 	} else {
 		switch listen.Scheme {
-		case "unix", "tcp":
+		case "unix":
 			ln, err = net.Listen(listen.Scheme, listen.Host + listen.Path)
+			if err1 := os.Chmod(listen.Host + listen.Path, 0666); err1 != nil {
+				log.Fatal(err1)
+			}
 		default:
 			ln, err = net.Listen("tcp", listen.Host)
 		}

@@ -1,6 +1,9 @@
 package main
 
 import (
+	"os"
+	"os/signal"
+    "syscall"
 	"log"
 	"net/http"
 
@@ -12,6 +15,17 @@ func main() {
 	web := proxy.NewWebServer()
 	pln := proxy.NewProxyListener()
 	wln := proxy.NewWebListener()
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<- sigs
+		pxy.Close()
+		pln.Close()
+		wln.Close()
+		log.Println("Close socket")
+		os.Exit(0)
+	}()
 
 	go http.Serve(wln, web)
 	log.Println("begin proxy")
