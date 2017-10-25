@@ -1,5 +1,5 @@
-//Package cache handlers http web cache.
-package cache
+//Package redis handlers http web cache.
+package redis
 
 import (
 	// "io"
@@ -10,19 +10,21 @@ import (
 	"time"
 )
 
+// Cache is an item of redis cache
 type Cache struct {
-	Header        http.Header `json:"header"`
-	Body          []byte      `json:"body"`
-	StatusCode    int         `json:"status_code"`
-	URI           string      `json:"url"`
-	Last_Modified string      `json:"last_modified"` //eg:"Fri, 27 Jun 2014 07:19:49 GMT"
-	ETag          string      `json:"etag"`
-	Mustverified  bool        `json:"must_verified"`
-	//Vlidity is a time when to verfiy the cache again.
-	Vlidity time.Time `json:"vlidity"`
-	maxAge  int64     `json:"-"`
+	Header       http.Header `json:"header"`
+	Body         []byte      `json:"body"`
+	StatusCode   int         `json:"status_code"`
+	URI          string      `json:"url"`
+	LastModified string      `json:"last_modified"` // eg:"Fri, 27 Jun 2014 07:19:49 GMT"
+	ETag         string      `json:"etag"`
+	Mustverified bool        `json:"must_verified"`
+	// Validity is a time when to verfiy the cache again.
+	Validity time.Time `json:"validity"`
+	maxAge   int64
 }
 
+// New creates a new redis cahce.
 func New(resp *http.Response) *Cache {
 	c := new(Cache)
 	c.Header = make(http.Header)
@@ -37,29 +39,29 @@ func New(resp *http.Response) *Cache {
 	}
 
 	c.ETag = c.Header.Get("ETag")
-	c.Last_Modified = c.Header.Get("Last-Modified")
+	c.LastModified = c.Header.Get("Last-Modified")
 
-	Cache_Control := c.Header.Get("Cache-Control")
+	cacheControl := c.Header.Get("Cache-Control")
 
 	// no-cache means you should verify data before use cache.
 	// only use cache when remote server returns 302 status.
-	if strings.Index(Cache_Control, "no-cache") != -1 ||
-		strings.Index(Cache_Control, "must-revalidate") != -1 ||
-		strings.Index(Cache_Control, "proxy-revalidate") != -1 {
+	if strings.Index(cacheControl, "no-cache") != -1 ||
+		strings.Index(cacheControl, "must-revalidate") != -1 ||
+		strings.Index(cacheControl, "proxy-revalidate") != -1 {
 		c.Mustverified = true
 		return nil
 	}
 
 	if Expires := c.Header.Get("Expires"); Expires != "" {
-		c.Vlidity, err = time.Parse(http.TimeFormat, Expires)
+		c.Validity, err = time.Parse(http.TimeFormat, Expires)
 		if err != nil {
 			return nil
 		}
-		log.Println("expire:", c.Vlidity)
+		log.Println("expire:", c.Validity)
 	}
 
-	max_age := getAge(Cache_Control)
-	if max_age != -1 {
+	maxAge := getAge(cacheControl)
+	if maxAge != -1 {
 		var Time time.Time
 		date := c.Header.Get("Date")
 		if date == "" {
@@ -70,30 +72,30 @@ func New(resp *http.Response) *Cache {
 				return nil
 			}
 		}
-		c.Vlidity = Time.Add(time.Duration(max_age) * time.Second)
-		c.maxAge = max_age
+		c.Validity = Time.Add(time.Duration(maxAge) * time.Second)
+		c.maxAge = maxAge
 	} else {
 		c.maxAge = 24 * 60 * 60
 	}
 
-	log.Println("all:", c.Vlidity)
+	log.Println("all:", c.Validity)
 
 	return c
 }
 
 // Verify verifies whether cache is out of date.
 func (c *Cache) Verify() bool {
-	if c.Mustverified == false && c.Vlidity.After(time.Now().UTC()) {
+	if c.Mustverified == false && c.Validity.After(time.Now().UTC()) {
 		return true
 	}
 
-	newReq, err := http.NewRequest("GET", c.URI, nil)
+	newReq, err := http.NewRequest("HEAD", c.URI, nil)
 	if err != nil {
 		return false
 	}
 
-	if c.Last_Modified != "" {
-		newReq.Header.Add("If-Modified-Since", c.Last_Modified)
+	if c.LastModified != "" {
+		newReq.Header.Add("If-Modified-Since", c.LastModified)
 	}
 	if c.ETag != "" {
 		newReq.Header.Add("If-None-Match", c.ETag)
@@ -110,7 +112,7 @@ func (c *Cache) Verify() bool {
 	return true
 }
 
-// CacheHandler handles "Get" request
+// WriteTo  writes cache to ResponseWriter
 func (c *Cache) WriteTo(rw http.ResponseWriter) (int, error) {
 
 	CopyHeaders(rw.Header(), c.Header)
@@ -130,15 +132,15 @@ func CopyHeaders(dst, src http.Header) {
 	}
 }
 
-//getAge from Cache Control get cache's lifetime.
-func getAge(Cache_Control string) (age int64) {
+// getAge from Cache Control get cache's lifetime.
+func getAge(cacheControl string) (age int64) {
 	f := func(sage string) int64 {
 		var tmpAge int64
-		idx := strings.Index(Cache_Control, sage)
+		idx := strings.Index(cacheControl, sage)
 		if idx != -1 {
-			for i := idx + len(sage) + 1; i < len(Cache_Control); i++ {
-				if Cache_Control[i] >= '0' && Cache_Control[i] <= '9' {
-					tmpAge = tmpAge*10 + int64(Cache_Control[i])
+			for i := idx + len(sage) + 1; i < len(cacheControl); i++ {
+				if cacheControl[i] >= '0' && cacheControl[i] <= '9' {
+					tmpAge = tmpAge*10 + int64(cacheControl[i])
 				} else {
 					break
 				}
@@ -147,8 +149,8 @@ func getAge(Cache_Control string) (age int64) {
 		}
 		return -1
 	}
-	if s_maxage := f("s-maxage"); s_maxage != -1 {
-		return s_maxage
+	if sMaxage := f("s-maxage"); sMaxage != -1 {
+		return sMaxage
 	}
 	return f("max-age")
 }

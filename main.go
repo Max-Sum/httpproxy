@@ -4,14 +4,14 @@ import (
 	"log"
 	"net/http"
 
-	"httpproxy/proxy"
+	"github.com/sakeven/httpproxy/proxy"
 )
 
 func main() {
-	pxy := proxy.NewProxyServer()
+	pxy := proxy.NewServer()
 	web := proxy.NewWebServer()
 
 	go http.ListenAndServe(web.Port, web)
-	log.Println("begin proxy")
+	log.Println("Begin proxy")
 	log.Fatal(pxy.ListenAndServe())
 }

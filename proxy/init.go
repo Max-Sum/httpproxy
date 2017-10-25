@@ -1,16 +1,17 @@
 package proxy
 
 import (
-	"github.com/op/go-logging"
-	"httpproxy/config"
+	logging "github.com/op/go-logging"
 
 	stdlog "log"
+
+	"github.com/sakeven/httpproxy/config"
 )
 
 var log = logging.MustGetLogger("proxy")
 var cnfg config.Config
 
-//setLog() sets log output format.
+// setLog sets log output format.
 func setLog() {
 	var level logging.Level
 	if cnfg.Log == 1 {
@@ -30,7 +31,7 @@ func setLog() {
 }
 
 func init() {
-	err := cnfg.GetConfig("config/config.json")
+	err := cnfg.GetConfig()
 	if err != nil {
 		stdlog.Fatal(err)
 	}

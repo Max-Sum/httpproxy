@@ -17,15 +17,15 @@ func init() {
 }
 
 func ProxyClient() (*http.Client, *httptest.Server) {
-	proxy := NewProxyServer()
+	proxy := NewServer()
 	s := httptest.NewServer(proxy.Handler)
 
-	proxyUrl, _ := url.Parse(s.URL)
-	client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyUrl)}}
+	proxyURL, _ := url.Parse(s.URL)
+	client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}}
 	return client, s
 }
 
-func TestProxyUrl(t *testing.T) {
+func TestProxyURL(t *testing.T) {
 	client, s := ProxyClient()
 	defer s.Close()
 
