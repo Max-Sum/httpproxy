@@ -21,11 +21,27 @@ func ClearHeaders(headers http.Header) {
 	}
 }
 
+func SanitizeRequest(req *http.Request) {
+	if req.URL.Scheme == "" {
+		req.URL.Scheme = "http"
+	}
+	if req.URL.Host == "" {
+		req.URL.Host = req.Host
+	}
+}
+
 // RmProxyHeaders remove Hop-by-hop headers.
 func RmProxyHeaders(req *http.Request) {
 	req.RequestURI = ""
 	req.Header.Del("Proxy-Connection")
 	req.Header.Del("Connection")
+	req.Header.Del("X-Forwarded-For")
+	req.Header.Del("X-Forwarded-By")
+	req.Header.Del("X-Forwarded-Proto")
+	req.Header.Del("X-Forwarded-X")
+	req.Header.Del("Forwarded")
+	req.Header.Del("Forwarded-For")
+	req.Header.Del("Forwarded-By")
 	req.Header.Del("Keep-Alive")
 	req.Header.Del("Proxy-Authenticate")
 	req.Header.Del("Proxy-Authorization")

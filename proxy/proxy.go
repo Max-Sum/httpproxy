@@ -70,7 +70,8 @@ func (proxy *ProxyServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 //HttpHandler handles http connections.
 //处理普通的http请求
 func (proxy *ProxyServer) HttpHandler(rw http.ResponseWriter, req *http.Request) {
-	log.Info("%v is sending request %v %v \n", proxy.User, req.Method, req.URL.Host)
+	log.Info("%v is sending request %v %v \n", proxy.User, req.Method, req.Host)
+	SanitizeRequest(req)
 	RmProxyHeaders(req)
 
 	resp, err := proxy.Tr.RoundTrip(req)
