@@ -13,7 +13,7 @@ type EntryTproxyServer struct {
 	Tr   *HTTPProxyClient
 	ln   net.Listener
 }
-// NewEntryServer returns a new proxyserver.
+// NewEntryTProxyServer returns a new proxyserver.
 func NewEntryTProxyServer(addr string, client *HTTPProxyClient) *EntryTproxyServer {
 	return &EntryTproxyServer{
 		Addr: addr,
@@ -51,7 +51,6 @@ func (s *EntryTproxyServer) Serve(l net.Listener) error {
 	s.ln = l
 	for {
 		conn, err := l.Accept()
-		defer conn.Close()
 		if err != nil {
 			if netErr, ok := err.(net.Error); ok && netErr.Temporary() {
 				log.Errorf("Temporary error while accepting connection: %s", netErr)

@@ -45,7 +45,6 @@ func (s *EntryRedirectServer) Serve(l net.Listener) error {
 	s.ln = l
 	for {
 		conn, err := l.Accept()
-		defer conn.Close()
 		if err != nil {
 			if netErr, ok := err.(net.Error); ok && netErr.Temporary() {
 				log.Error("Redirect Entry: Temporary error while accepting connection")

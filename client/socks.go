@@ -34,12 +34,12 @@ func (s *EntrySocksServer) ListenAndServe() error {
 	return s.Serve(l)
 }
 
+// Serve on the Listener
 func (s *EntrySocksServer) Serve(l net.Listener) error {
 	// Save the listener
 	s.ln = l
     for {
 		conn, err := l.Accept()
-		defer conn.Close()
         if err != nil {
             log.Error(err)
             continue
