@@ -3,7 +3,6 @@ package client
 import (
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"time"
 )
@@ -58,6 +57,7 @@ func (proxy *entryHTTPHandler) HTTPHandler(rw http.ResponseWriter, req *http.Req
 	SanitizeRequest(req)
 	RmProxyHeaders(req)
 
+	
 	resp, err := proxy.Tr.RoundTrip(req)
 	if err != nil {
 		log.Errorf("HTTP Entry: %v", err)
@@ -76,7 +76,7 @@ func (proxy *entryHTTPHandler) HTTPHandler(rw http.ResponseWriter, req *http.Req
 		log.Errorf("HTTP Entry: %v", err)
 		return
 	}
-	log.Info("copied %v bytes from %v.\n", nr, req.URL.Host)
+	log.Infof("HTTP Entry: copied %d bytes from %s", nr, req.URL.Host)
 }
 
 var http200 = []byte("HTTP/1.1 200 Connection Established\r\n\r\n")
@@ -87,7 +87,6 @@ func (proxy *entryHTTPHandler) HTTPSHandler(rw http.ResponseWriter, req *http.Re
 
 	hj, _ := rw.(http.Hijacker)
 	client, _, err := hj.Hijack() //获取客户端与代理服务器的tcp连接
-	defer client.Close()
 	if err != nil {
 		log.Errorf("HTTP Entry: Failed to get TCP connection of %s", req.RequestURI)
 		log.Error(err)
@@ -97,9 +96,9 @@ func (proxy *entryHTTPHandler) HTTPSHandler(rw http.ResponseWriter, req *http.Re
 	
 	// 提前发送200，减少RTT时间
 	client.Write(http200)
-	err = proxy.Tr.Redirect(client.(*net.TCPConn), req.URL.Host)
+	err = proxy.Tr.Redirect(client, req.URL.Host)
 	if err != nil {
-		log.Errorf("HTTP Entry: fFiled to connect to %s", req.RequestURI)
+		log.Errorf("HTTP Entry: Failed to connect to %s", req.RequestURI)
 		log.Error(err)
 		// TODO write error msg.
 		client.Close()

@@ -17,7 +17,8 @@ type Client struct {
 	WebListen string `json:"weblisten"`
 
 	// 代理用户账户
-	User map[string]string `json:"user"`
+	Username string `json:"username"`
+	Password string `json:"password"`
 
 	// 管理员账号
 	Admin map[string]string `json:"admin"`
@@ -45,7 +46,6 @@ type Client struct {
 // GetConfig 从指定json文件读取config配置
 func (c *Client) GetConfig(filename string) error {
 	c.Admin = make(map[string]string)
-	c.User = make(map[string]string)
 
 	configFile, err := os.Open(filename)
 	if err != nil {

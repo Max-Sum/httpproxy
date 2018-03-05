@@ -44,7 +44,7 @@ func (s *EntrySocksServer) Serve(l net.Listener) error {
             log.Error(err)
             continue
         }
-        log.Debug("connected from %s", conn.RemoteAddr())
+        log.Debugf("connected from %s", conn.RemoteAddr())
         c := socks.Conn{Conn: conn, Dial: s.dial}
         go c.Serve()
     }
