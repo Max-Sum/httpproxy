@@ -8,8 +8,8 @@ import (
 	"strings"
 )
 
-// ClientConfig 客户端的配置
-type ClientConfig struct {
+// Client 客户端的配置
+type Client struct {
 	// 代理服务器工作端口,eg:":8080"
 	Proxy string `json:"listen"`
 
@@ -34,13 +34,16 @@ type ClientConfig struct {
 	// TProxy 监听地址
 	TProxyListen string `json:"tproxy"`
 
+	// 忽略 TLS 证书检查
+	InsecureSkipVerify bool `json:"insecure"`
+
 	// 日志信息，1输出Debug信息，0输出普通监控信息
 	LogLevel int `json:"loglevel"`
 }
 
 // GetConfig gets config from json file.
 // GetConfig 从指定json文件读取config配置
-func (c *ClientConfig) GetConfig(filename string) error {
+func (c *Client) GetConfig(filename string) error {
 	c.Admin = make(map[string]string)
 	c.User = make(map[string]string)
 
@@ -60,7 +63,7 @@ func (c *ClientConfig) GetConfig(filename string) error {
 
 // WriteToFile writes config into json file.
 // WriteToFile 将config配置写入特定json文件
-func (c *ClientConfig) WriteToFile(filename string) error {
+func (c *Client) WriteToFile(filename string) error {
 	configFile, err := os.OpenFile(filename, os.O_WRONLY|os.O_TRUNC, os.ModePerm)
 	if err != nil {
 		return err

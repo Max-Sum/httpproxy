@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"time"
 )
@@ -11,15 +12,20 @@ type entryHTTPHandler struct {
 	Tr   *HTTPProxyClient
 }
 
+// EntryHTTPServer is normal HTTP entrypoint.
+type EntryHTTPServer struct {
+	*http.Server
+}
+
 // NewEntryHTTPServer returns a new proxyserver.
-func NewEntryHTTPServer(addr string, client *HTTPProxyClient) *http.Server {
-	return &http.Server{
+func NewEntryHTTPServer(addr string, client *HTTPProxyClient) *EntryHTTPServer {
+	return &EntryHTTPServer{&http.Server{
 		Addr:           addr,
 		Handler:        &entryHTTPHandler{Tr: client},
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,
-	}
+	}}
 }
 
 //ServeHTTP will be automatically called by system.
@@ -91,7 +97,7 @@ func (proxy *entryHTTPHandler) HTTPSHandler(rw http.ResponseWriter, req *http.Re
 	
 	// 提前发送200，减少RTT时间
 	client.Write(http200)
-	err = proxy.Tr.Redirect(client, req.URL.Host)
+	err = proxy.Tr.Redirect(client.(*net.TCPConn), req.URL.Host)
 	if err != nil {
 		log.Errorf("HTTP Entry: fFiled to connect to %s", req.RequestURI)
 		log.Error(err)

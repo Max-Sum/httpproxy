@@ -2,6 +2,7 @@ package client
 
 import (
 	"bufio"
+	"context"
 	"crypto/tls"
 	"strings"
 	"encoding/base64"
@@ -14,7 +15,9 @@ import (
 // HTTPProxyClient is a backend client.
 // It could be used to construct a new client with various backend.
 type HTTPProxyClient struct {
-	Tr http.Transport
+	Tr     http.Transport
+	ctx    context.Context
+	Cancel context.CancelFunc
 }
 
 // NewHTTPProxyClient creates a new HTTPProxyClient object.
@@ -28,12 +31,16 @@ func NewHTTPProxyClient(proxyURL *url.URL, TLSConfig *tls.Config) *HTTPProxyClie
 		header.Set("Proxy-Authorization",
 			"Basic " + base64.StdEncoding.EncodeToString([]byte(proxyURL.User.String())))
 	}
+	// Set default context
+	ctx, cancelFn := context.WithCancel(context.Background())
 	return &HTTPProxyClient {
 		Tr: http.Transport{
 			TLSClientConfig:    TLSConfig,
 			Proxy:				http.ProxyURL(proxyURL),
 			ProxyConnectHeader: header,
 		},
+		ctx: ctx,
+		Cancel: cancelFn,
 	}
 }
 
@@ -56,7 +63,7 @@ func (p *HTTPProxyClient) SetBasicAuth(username, password string) error {
 	return nil
 }
 
-func (p *HTTPProxyClient) connect(targetAddr string) (net.Conn, error) {
+func (p *HTTPProxyClient) connect(targetAddr string) (*net.TCPConn, error) {
 	var conn net.Conn
 	var err error
 	// Only Do CONNECT Method
@@ -71,9 +78,9 @@ func (p *HTTPProxyClient) connect(targetAddr string) (net.Conn, error) {
 	proxyAddr := canonicalAddr(proxyURL)
 	switch scheme := proxyURL.Scheme; scheme {
 	case "http":
-		conn, err = net.Dial("tcp", proxyAddr)
+		conn, err = (&net.Dialer{}).DialContext(p.ctx, "tcp", proxyAddr)
 	case "https":
-		conn, err = tls.Dial("tcp", proxyAddr, p.Tr.TLSClientConfig)
+		conn, err = tls.DialWithDialer((&net.Dialer{}), "tcp", proxyAddr, p.Tr.TLSClientConfig)
 	default:
 		err = fmt.Errorf("unsupported Proxy scheme: %s", scheme)
 	}
@@ -86,7 +93,7 @@ func (p *HTTPProxyClient) connect(targetAddr string) (net.Conn, error) {
 		conn.Close()
 		return nil, err
 	}
-	return conn, nil
+	return conn.(*net.TCPConn), nil
 }
 
 // Dial is just a function to perform Connection to the Proxy.
@@ -116,7 +123,7 @@ func (p *HTTPProxyClient) Dial(targetAddr string) (net.Conn, error) {
 
 // Redirect Connects to the proxy and Copy from the given connection.
 // Using Redirect rather than Dial to save one RTT.
-func (p *HTTPProxyClient) Redirect(srcConn net.Conn, targetAddr string) error {
+func (p *HTTPProxyClient) Redirect(srcConn *net.TCPConn, targetAddr string) error {
 	targetAddr, err := santinizeAddr(targetAddr)
 	if err != nil {
 		return err

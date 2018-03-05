@@ -11,6 +11,7 @@ import (
 type EntrySocksServer struct {
 	Addr string
 	Tr *HTTPProxyClient
+	ln net.Listener
 }
 // NewEntryServer returns a new proxyserver.
 func NewEntrySocksServer(addr string, client *HTTPProxyClient) *EntrySocksServer {
@@ -34,6 +35,8 @@ func (s *EntrySocksServer) ListenAndServe() error {
 }
 
 func (s *EntrySocksServer) Serve(l net.Listener) error {
+	// Save the listener
+	s.ln = l
     for {
 		conn, err := l.Accept()
 		defer conn.Close()
@@ -45,6 +48,15 @@ func (s *EntrySocksServer) Serve(l net.Listener) error {
         c := socks.Conn{Conn: conn, Dial: s.dial}
         go c.Serve()
     }
+}
+
+// Shutdown the redirect server gracefully
+func (s *EntrySocksServer) Shutdown() error {
+	err := s.ln.Close()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *EntrySocksServer) dial(network, addr string) (net.Conn, error) {

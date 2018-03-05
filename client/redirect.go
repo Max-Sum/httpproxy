@@ -11,8 +11,10 @@ import (
 
 // EntryRedirectServer is an entrypoint for Linux firewall redirection.
 type EntryRedirectServer struct {
-	Addr string
-	Tr *HTTPProxyClient
+	Addr  string
+	Tr    *HTTPProxyClient
+	ln    net.Listener
+	conns chan net.Conn
 }
 
 // NewEntryRedirectServer returns a new proxyserver.
@@ -39,6 +41,8 @@ func (s *EntryRedirectServer) ListenAndServe() error {
 
 // Serve on the listener
 func (s *EntryRedirectServer) Serve(l net.Listener) error {
+	// Save the listener
+	s.ln = l
 	for {
 		conn, err := l.Accept()
 		defer conn.Close()
@@ -52,6 +56,15 @@ func (s *EntryRedirectServer) Serve(l net.Listener) error {
 		}
 		go s.handleTCPConn(conn.(*net.TCPConn))
 	}
+}
+
+// Shutdown the server gracefully
+func (s *EntryRedirectServer) Shutdown() error {
+	err := s.ln.Close()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *EntryRedirectServer) handleTCPConn(conn *net.TCPConn) {

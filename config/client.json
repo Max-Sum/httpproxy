@@ -1,5 +1,5 @@
 {
-    "listen":"tcp://8.8.8.8:8080?tls=1.2",
+    "listen":"https://8.8.8.8:8080",
     "weblisten":"tcp://127.0.0.1:6060?tls=1.2\u0026cert=/Users/Max/certificates/combined.crt\u0026key=/Users/Max/certificates/combined.key",
     "user":{"proxy":"proxy"},
     "admin":{"Admin":"prxy"},
@@ -7,5 +7,6 @@
     "socks":"127.0.0.1:1080",
     "redirect":"",
     "transparent":"0.0.0.0:3334",
+    "insecure": false,
     "loglevel":0
 }

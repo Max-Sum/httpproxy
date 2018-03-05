@@ -11,6 +11,7 @@ import (
 type EntryTproxyServer struct {
 	Addr string
 	Tr   *HTTPProxyClient
+	ln   net.Listener
 }
 // NewEntryServer returns a new proxyserver.
 func NewEntryTProxyServer(addr string, client *HTTPProxyClient) *EntryTproxyServer {
@@ -46,6 +47,8 @@ func (s *EntryTproxyServer) listen(network, address string) (net.Listener, error
 
 // Serve at the listener.
 func (s *EntryTproxyServer) Serve(l net.Listener) error {
+	// Save the listener
+	s.ln = l
 	for {
 		conn, err := l.Accept()
 		defer conn.Close()
@@ -60,11 +63,20 @@ func (s *EntryTproxyServer) Serve(l net.Listener) error {
 	}
 }
 
+// Shutdown the redirect server gracefully
+func (s *EntryTproxyServer) Shutdown() error {
+	err := s.ln.Close()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *EntryTproxyServer) handleTCPConn(conn net.Conn) {
 	log.Debugf("Accepting TCP connection from %s with destination of %s", conn.RemoteAddr().String(), conn.LocalAddr().String())
 	// LocalAddr is the real remote address.
 	// Think about it.
-	err := s.Tr.Redirect(conn, conn.LocalAddr().String())
+	err := s.Tr.Redirect(conn.(*net.TCPConn), conn.LocalAddr().String())
 	if err != nil {
 		log.Errorf("Failed to connect to original destination [%s]: %s", conn.LocalAddr().String(), err)
 		conn.Close()

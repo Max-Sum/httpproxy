@@ -7,10 +7,7 @@ import (
 	"net/url"
 	"net/http"
 	"regexp"
-	"github.com/op/go-logging"
 )
-
-var log = logging.MustGetLogger("HTTP Proxy")
 
 var portMap = map[string]string{
 	"http":   "80",
@@ -45,15 +42,16 @@ func santinizeAddr(addr string) (string, error) {
 }
 
 // CopyIO copies from connection to another
-func CopyIO(dst, src net.Conn) {
+// And Close them when things ends.
+func CopyIO(dst, src *net.TCPConn) {
 	defer func() {
-		dst.Close()
-		src.Close()
+		dst.CloseWrite()
+		src.CloseRead()
 	}()
 
 	_, err := io.Copy(dst, src)
 	if err != nil && err != io.EOF {
-		//log.Error("%v got an error when handles CONNECT %v\n", User, err)
+		log.Errorf("Got an error when copying %v", err)
 		return
 	}
 }
