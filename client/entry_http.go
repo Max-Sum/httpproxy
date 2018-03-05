@@ -3,20 +3,19 @@ package client
 import (
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"time"
 )
 
-type entryHttpHandler struct {
+type entryHTTPHandler struct {
 	Tr   *HTTPProxyClient
 }
 
-// NewEntryServer returns a new proxyserver.
-func NewEntryServer(addr string, client *HTTPProxyClient) *http.Server {
+// NewEntryHTTPServer returns a new proxyserver.
+func NewEntryHTTPServer(addr string, client *HTTPProxyClient) *http.Server {
 	return &http.Server{
 		Addr:           addr,
-		Handler:        &entryHttpHandler{Tr: client},
+		Handler:        &entryHTTPHandler{Tr: client},
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,
@@ -25,11 +24,11 @@ func NewEntryServer(addr string, client *HTTPProxyClient) *http.Server {
 
 //ServeHTTP will be automatically called by system.
 //ProxyServer implements the Handler interface which need ServeHTTP.
-func (proxy *entryHttpHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+func (proxy *entryHTTPHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	defer func() {
 		if err := recover(); err != nil {
 			rw.WriteHeader(http.StatusInternalServerError)
-			log.Debug("Panic: %v\n", err)
+			log.Debugf("HTTP Entry: %v", err)
 			fmt.Fprintf(rw, fmt.Sprintln(err))
 		}
 	}()
@@ -40,22 +39,22 @@ func (proxy *entryHttpHandler) ServeHTTP(rw http.ResponseWriter, req *http.Reque
 	//}
 
 	if req.Method == "CONNECT" {
-		proxy.HttpsHandler(rw, req)
+		proxy.HTTPSHandler(rw, req)
 	} else {
-		proxy.HttpHandler(rw, req)
+		proxy.HTTPHandler(rw, req)
 	}
 }
 
 //HttpHandler handles http connections.
 //处理普通的http请求
-func (proxy *entryHttpHandler) HttpHandler(rw http.ResponseWriter, req *http.Request) {
-	log.Info("sending request %v %v \n", req.Method, req.Host)
+func (proxy *entryHTTPHandler) HTTPHandler(rw http.ResponseWriter, req *http.Request) {
+	log.Debugf("HTTP Entry: Sending request %s %s", req.Method, req.Host)
 	SanitizeRequest(req)
 	RmProxyHeaders(req)
 
 	resp, err := proxy.Tr.RoundTrip(req)
 	if err != nil {
-		log.Error("%v", err)
+		log.Errorf("HTTP Entry: %v", err)
 		http.Error(rw, err.Error(), 500)
 		return
 	}
@@ -68,33 +67,34 @@ func (proxy *entryHttpHandler) HttpHandler(rw http.ResponseWriter, req *http.Req
 
 	nr, err := io.Copy(rw, resp.Body)
 	if err != nil && err != io.EOF {
-		log.Error("%v got an error when copy remote response to client.%v\n", proxy.User, err)
+		log.Errorf("HTTP Entry: %v", err)
 		return
 	}
 	log.Info("copied %v bytes from %v.\n", nr, req.URL.Host)
 }
 
-var HTTP_200 = []byte("HTTP/1.1 200 Connection Established\r\n\r\n")
-
-// HttpsHandler handles any connection which need connect method.
+var http200 = []byte("HTTP/1.1 200 Connection Established\r\n\r\n")
+// HTTPSHandler handles any connection which need connect method.
 // 处理https连接，主要用于CONNECT方法
-func (proxy *entryHttpHandler) HttpsHandler(rw http.ResponseWriter, req *http.Request) {
-	log.Info("tried to connect to %v", req.URL.Host)
+func (proxy *entryHTTPHandler) HTTPSHandler(rw http.ResponseWriter, req *http.Request) {
+	log.Debugf("HTTP Entry: Tried to connect to %s", req.URL.Host)
 
 	hj, _ := rw.(http.Hijacker)
 	client, _, err := hj.Hijack() //获取客户端与代理服务器的tcp连接
 	defer client.Close()
 	if err != nil {
-		log.Error("failed to get Tcp connection of \n", req.RequestURI)
-		http.Error(rw, "Failed", http.StatusBadRequest)
+		log.Errorf("HTTP Entry: Failed to get TCP connection of %s", req.RequestURI)
+		log.Error(err)
+		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
 	}
 	
 	// 提前发送200，减少RTT时间
-	client.Write(HTTP_200)
+	client.Write(http200)
 	err = proxy.Tr.Redirect(client, req.URL.Host)
 	if err != nil {
-		log.Error("failed to connect %v\n", req.RequestURI)
+		log.Errorf("HTTP Entry: fFiled to connect to %s", req.RequestURI)
+		log.Error(err)
 		// TODO write error msg.
 		client.Close()
 		return
