@@ -4,12 +4,13 @@ import (
 	"context"
 	"net/url"
 	"crypto/tls"
+	"runtime"
 	"github.com/op/go-logging"
 	"httpproxy/config"
 )
 
 var (
-	cnfg config.Client
+	cnfg     config.Client
 	client   *HTTPProxyClient
 	enhttp   *EntryHTTPServer
 	ensocks  *EntrySocksServer
@@ -53,11 +54,11 @@ func Initialize(c config.Client) {
 		ensocks = NewEntrySocksServer(cnfg.SocksListen, client)
 		go ensocks.ListenAndServe()
 	}
-	if cnfg.RedirListen != "" {
+	if cnfg.RedirListen != "" && runtime.GOOS == "linux" {
 		enredir = NewEntryRedirectServer(cnfg.RedirListen, client)
 		go enredir.ListenAndServe()
 	}
-	if cnfg.TProxyListen != "" {
+	if cnfg.TProxyListen != "" && runtime.GOOS == "linux" {
 		entproxy = NewEntryTProxyServer(cnfg.TProxyListen, client)
 		go entproxy.ListenAndServe()
 	}
@@ -65,21 +66,29 @@ func Initialize(c config.Client) {
 
 func Shutdown() error {
 	var err error
-	err = enhttp.Shutdown(context.Background())
-	if err != nil {
-		return err
+	if enhttp != nil {
+		err = enhttp.Shutdown(context.Background())
+		if err != nil {
+			return err
+		}
 	}
-	err = ensocks.Shutdown()
-	if err != nil {
-		return err
+	if ensocks != nil {
+		err = ensocks.Shutdown()
+		if err != nil {
+			return err
+		}
 	}
-	err = enredir.Shutdown()
-	if err != nil {
-		return err
+	if enredir != nil {
+		err = enredir.Shutdown()
+		if err != nil {
+			return err
+		}
 	}
-	err = entproxy.Shutdown()
-	if err != nil {
-		return err
+	if entproxy != nil {
+		err = entproxy.Shutdown()
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -87,9 +96,30 @@ func Shutdown() error {
 // Close all service forcefully
 func Close() error {
 	var err error
-	err = enhttp.Close()
-	if err != nil {
-		return err
+	if enhttp != nil {
+		err = enhttp.Close()
+		if err != nil {
+			return err
+		}
+	}
+	// Shutdown other platform
+	if ensocks != nil {
+		err = ensocks.Shutdown()
+		if err != nil {
+			return err
+		}
+	}
+	if enredir != nil {
+		err = enredir.Shutdown()
+		if err != nil {
+			return err
+		}
+	}
+	if entproxy != nil {
+		err = entproxy.Shutdown()
+		if err != nil {
+			return err
+		}
 	}
 	client.Cancel()
 	return nil

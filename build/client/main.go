@@ -40,7 +40,7 @@ func main() {
 		<-sigint
 
 		// We received an interrupt signal, shut down.
-		if err := client.Shutdown(context.Background()); err != nil {
+		if err := client.Shutdown(); err != nil {
 			// Error from closing listeners:
 			log.Printf("Client Shutdown: %v", err)
 		}
@@ -55,7 +55,7 @@ func main() {
 		<-sigterm
 
 		// Forcefully Shutdown
-		if err := srv.Close(); err != nil {
+		if err := client.Close(); err != nil {
 			// Error from closing listeners:
 			log.Printf("HTTP server Shutdown: %v", err)
 		}
