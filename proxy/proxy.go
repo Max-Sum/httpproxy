@@ -100,7 +100,7 @@ var HTTP_200 = []byte("HTTP/1.1 200 Connection Established\r\n\r\n")
 
 // HttpsHandler handles any connection which need connect method.
 // 处理https连接，主要用于CONNECT方法
-func (proxy *ProxyServer) HttpsHandler(rw http.ResponseWriter, req *http.Request, boost bool) {
+func (proxy *ProxyServer) HttpsHandler(rw http.ResponseWriter, req *http.Request, boost200 bool) {
 	log.Info("%v tried to connect to %v", proxy.User, req.URL.Host)
 
 	hj, _ := rw.(http.Hijacker)
@@ -110,19 +110,16 @@ func (proxy *ProxyServer) HttpsHandler(rw http.ResponseWriter, req *http.Request
 		http.Error(rw, "Failed", http.StatusBadRequest)
 		return
 	}
-	if boost {
+	var remote *net.TCPConn
+	if boost200 {
 		// 提前发送200，减少RTT时间
 		client.Write(HTTP_200)
-		remote, err := net.DialTCP("tcp", req.URL.Host) //建立服务端和代理服务器的tcp连接
-		if err != nil {
-			log.Error("%v failed to connect %v\n", proxy.User, req.RequestURI)
-			client.Write(fmt.Sprintf("Failed to connect to %s"), req.URL.Host)
-			client.Close()
-			return
-		}
-	} else {
-		remote, err := net.DialTCP("tcp", req.URL.Host) //建立服务端和代理服务器的tcp连接
-		if err != nil {
+	}
+	remote, err := net.DialTCP("tcp", req.URL.Host) //建立服务端和代理服务器的tcp连接
+	if err != nil {
+		log.Error("%v failed to connect %v\n", proxy.User, req.RequestURI)
+		// If 200 is not sent, we can report the error to client.
+		if !boost200 {
 			resp = &http.Response{
 				StatusCode:      502,
 				ProtoMajor:      req.ProtoMajor,
@@ -133,14 +130,16 @@ func (proxy *ProxyServer) HttpsHandler(rw http.ResponseWriter, req *http.Request
 				Close:           true,
 				Request:         req,
 			}
-			log.Error("%v failed to connect %v\n", proxy.User, req.RequestURI)
 			if err.Timeout() {
 				resp.StatusCode = 504
 			}
 			resp.Write(client)
-			client.Close()
-			return
 		}
+		client.Close()
+		return
+	}
+	// Write 200 after getting connection.
+	if !boost200 {
 		client.Write(HTTP_200)
 	}
 
