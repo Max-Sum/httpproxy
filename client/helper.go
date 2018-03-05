@@ -30,7 +30,7 @@ var addrRegexp *regexp.Regexp
 func santinizeAddr(addr string) (string, error) {
 	var err error
 	if addrRegexp == nil {
-		addrRegexp, err = regexp.Compile("^([^:/\\]*)|(\[[1-9a-f:]*\])(\\d(1-5))$")
+		addrRegexp, err = regexp.Compile("^(([^:/\\\\]*)|(\\[[1-9a-f:]*\\]))(\\d(1-5))$")
 		if err != nil {
 			return "", err
 		}
