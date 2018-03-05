@@ -1,5 +1,5 @@
-FROM golang:1.7
-MAINTAINER Sakeven Jiang "jc5930@sina.cn"
+FROM golang:alpine
+MAINTAINER Max Sum <max@lolyculture.com>
 
 # Build app
 ADD . $GOPATH/src/httpproxy
