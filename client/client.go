@@ -100,7 +100,7 @@ func (p *HTTPProxyClient) getConn() (*pool.PoolConn, error) {
 	}
 	one := []byte{}
 	pc.SetReadDeadline(time.Now())
-	if _, err := pc.Read(one); err == io.EOF {
+	if _, err := pc.Read(one); err == io.EOF || pc.Conn == nil {
 		// Abandon expired connections
 		// and get a new one.
 		log.Debug("HTTP Proxy: Connection expired, abandon")
