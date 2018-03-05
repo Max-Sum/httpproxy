@@ -8,15 +8,14 @@ import (
 	"time"
 )
 
-type EntryHTTPServer struct {
+type entryHttpHandler struct {
 	Tr   *HTTPProxyClient
-	
 }
 
-// NewProxyServer returns a new proxyserver.
-func NewProxyServer(client *HTTPProxyClient) *http.Server {
+// NewEntryServer returns a new proxyserver.
+func NewEntryServer(client *HTTPProxyClient) *http.Server {
 	return &http.Server{
-		Handler:        &EntryHTTPServer{Tr: client},
+		Handler:        &entryHttpHandler{Tr: client},
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,
@@ -25,7 +24,7 @@ func NewProxyServer(client *HTTPProxyClient) *http.Server {
 
 //ServeHTTP will be automatically called by system.
 //ProxyServer implements the Handler interface which need ServeHTTP.
-func (proxy *EntryHTTPServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+func (proxy *entryHttpHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	defer func() {
 		if err := recover(); err != nil {
 			rw.WriteHeader(http.StatusInternalServerError)
@@ -48,7 +47,7 @@ func (proxy *EntryHTTPServer) ServeHTTP(rw http.ResponseWriter, req *http.Reques
 
 //HttpHandler handles http connections.
 //处理普通的http请求
-func (proxy *EntryHTTPServer) HttpHandler(rw http.ResponseWriter, req *http.Request) {
+func (proxy *entryHttpHandler) HttpHandler(rw http.ResponseWriter, req *http.Request) {
 	log.Info("sending request %v %v \n", req.Method, req.Host)
 	SanitizeRequest(req)
 	RmProxyHeaders(req)
@@ -78,7 +77,7 @@ var HTTP_200 = []byte("HTTP/1.1 200 Connection Established\r\n\r\n")
 
 // HttpsHandler handles any connection which need connect method.
 // 处理https连接，主要用于CONNECT方法
-func (proxy *EntryHTTPServer) HttpsHandler(rw http.ResponseWriter, req *http.Request) {
+func (proxy *entryHttpHandler) HttpsHandler(rw http.ResponseWriter, req *http.Request) {
 	log.Info("tried to connect to %v", req.URL.Host)
 
 	hj, _ := rw.(http.Hijacker)
