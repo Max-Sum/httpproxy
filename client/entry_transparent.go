@@ -23,9 +23,10 @@ func NewEntryTProxyServer(addr string, client *HTTPProxyClient) *EntryTproxyServ
 func (s *EntryTproxyServer) ListenAndServe() error
 	addr := s.Addr
 	if addr == "" {
-		addr = ":3333"
+		addr = ":3334"
 	}
 	l, err := tproxy.listen("tcp", s.Addr)
+	defer l.Close()
 	if err != nil {
 		return err
 	}
@@ -52,24 +53,21 @@ func (s *EntryTproxyServer) listen(network, address string) (Listener, error) {
 }
 
 func (s *EntryTproxyServer) Serve(l net.Listener) error {
-	defer l.Close()
 	for {
 		conn, err := l.Accept()
+		defer conn.Close()
 		if err != nil {
 			if netErr, ok := err.(net.Error); ok && netErr.Temporary() {
 				log.Errorf("Temporary error while accepting connection: %s", netErr)
 			}
-
 			log.Fatalf("Unrecoverable error while accepting connection: %s", err)
 			return err
 		}
-
 		go handleTCPConn(conn)
 	}
 }
 
 func (s *EntryTproxyServer) handleTCPConn(conn net.Conn) {
-	defer conn.Close()
 	log.Debugf("Accepting TCP connection from %s with destination of %s", conn.RemoteAddr().String(), conn.LocalAddr().String())
 	// LocalAddr is the real remote address.
 	// Think about it.

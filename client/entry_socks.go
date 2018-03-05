@@ -24,7 +24,8 @@ func (s *EntrySocksServer) ListenAndServe() error
 	if addr == "" {
 		addr = ":1080"
 	}
-	l, err := tproxy.listen("tcp", s.Addr)
+	l, err := net.listen("tcp", s.Addr)
+	defer l.Close()
 	if err != nil {
 		return err
 	}
@@ -32,17 +33,14 @@ func (s *EntrySocksServer) ListenAndServe() error
 }
 
 func (s *EntrySocksServer) Serve(l net.Listener) error
-	defer l.Close()
-
     for {
-        conn, err := l.Accept()
+		conn, err := l.Accept()
+		defer conn.Close()
         if err != nil {
             log.Println(err)
             continue
         }
-
-        log.Debug("connected from %s", c.RemoteAddr())
-
+        log.Debug("connected from %s", conn.RemoteAddr())
         c := socks.Conn{Conn: conn, Dial: s.dial}
         go c.Serve()
     }
