@@ -7,7 +7,10 @@ import (
 	"net/url"
 	"net/http"
 	"regexp"
+	"github.com/op/go-logging"
 )
+
+var log = logging.MustGetLogger("HTTP Proxy")
 
 var portMap = map[string]string{
 	"http":   "80",

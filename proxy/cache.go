@@ -16,7 +16,7 @@ func RegisterCacheBox(c lib.CacheBox) {
 }
 
 //CacheHandler handles "Get" request
-func (proxy *ProxyServer) CacheHandler(rw http.ResponseWriter, req *http.Request) {
+func (proxy *Handler) CacheHandler(rw http.ResponseWriter, req *http.Request) {
 
 	var uri = req.RequestURI
 

@@ -11,7 +11,7 @@ import (
 //var HTTP_407 = []byte("HTTP/1.1 407 Proxy Authorization Required\r\nProxy-Authenticate: Basic realm=\"Secure Proxys\"\r\n\r\n")
 
 //Auth provides basic authorizaton for proxy server.
-func (proxy *ProxyServer) Auth(rw http.ResponseWriter, req *http.Request) bool {
+func (proxy *Handler) Auth(rw http.ResponseWriter, req *http.Request) bool {
 	var err error
 	if cnfg.Reverse == false && cnfg.Auth == true { //代理服务器登入认证
 		if proxy.User, err = proxy.auth(rw, req); err != nil {
@@ -26,7 +26,7 @@ func (proxy *ProxyServer) Auth(rw http.ResponseWriter, req *http.Request) bool {
 }
 
 //Auth provides basic authorizaton for proxy server.
-func (proxy *ProxyServer) auth(rw http.ResponseWriter, req *http.Request) (string, error) {
+func (proxy *Handler) auth(rw http.ResponseWriter, req *http.Request) (string, error) {
 
 	auth := req.Header.Get("Proxy-Authorization")
 	auth = strings.Replace(auth, "Basic ", "", 1)

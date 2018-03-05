@@ -3,9 +3,7 @@ package client
 import (
 	"bufio"
 	"crypto/tls"
-	"errors"
 	"strings"
-	//"crypto/x509"
 	"encoding/base64"
 	"fmt"
 	"net"
@@ -48,7 +46,7 @@ func (p *HTTPProxyClient) SetBasicAuth(username, password string) error {
 	} else {
 		var user = url.UserPassword(username, password)
 		if user == nil {
-			return errors.New("invalid username or password inserted")
+			return fmt.Errorf("invalid username or password inserted")
 		}
 		p.Tr.ProxyConnectHeader.Set("Proxy-Authorization",
 			"Basic "+base64.StdEncoding.EncodeToString([]byte(user.String())))
@@ -111,7 +109,7 @@ func (p *HTTPProxyClient) Dial(targetAddr string) (net.Conn, error) {
 	if resp.StatusCode != http.StatusOK {
 		f := strings.SplitN(resp.Status, " ", 2)
 		conn.Close()
-		return nil, errors.New(f[1])
+		return nil, fmt.Errorf(f[1])
 	}
 	return conn, nil
 }
@@ -138,7 +136,7 @@ func (p *HTTPProxyClient) Redirect(srcConn net.Conn, targetAddr string) error {
 	if resp.StatusCode != http.StatusOK {
 		f := strings.SplitN(resp.Status, " ", 2)
 		conn.Close()
-		return errors.New(f[1])
+		return fmt.Errorf(f[1])
 	}
 	// Start to copy other
 	go CopyIO(srcConn, conn)

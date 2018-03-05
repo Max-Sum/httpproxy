@@ -6,16 +6,18 @@
 package proxy
 
 import (
+	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"time"
-
 	"httpproxy/cache"
 )
 
-type ProxyServer struct {
+// Handler is the main structure
+type Handler struct {
 	// User records user's name
 	Tr   *http.Transport
 	User string
@@ -28,7 +30,7 @@ func NewProxyServer() *http.Server {
 	}
 
 	return &http.Server{
-		Handler:        &ProxyServer{Tr: &http.Transport{Proxy: http.ProxyFromEnvironment}},
+		Handler:        &Handler{Tr: &http.Transport{Proxy: http.ProxyFromEnvironment}},
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,
@@ -36,8 +38,8 @@ func NewProxyServer() *http.Server {
 }
 
 //ServeHTTP will be automatically called by system.
-//ProxyServer implements the Handler interface which need ServeHTTP.
-func (proxy *ProxyServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+//Server implements the Handler interface which need ServeHTTP.
+func (proxy *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	defer func() {
 		if err := recover(); err != nil {
 			rw.WriteHeader(http.StatusInternalServerError)
@@ -70,7 +72,7 @@ func (proxy *ProxyServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 //HttpHandler handles http connections.
 //处理普通的http请求
-func (proxy *ProxyServer) HttpHandler(rw http.ResponseWriter, req *http.Request) {
+func (proxy *Handler) HttpHandler(rw http.ResponseWriter, req *http.Request) {
 	log.Info("%v is sending request %v %v \n", proxy.User, req.Method, req.Host)
 	SanitizeRequest(req)
 	RmProxyHeaders(req)
@@ -100,7 +102,7 @@ var HTTP_200 = []byte("HTTP/1.1 200 Connection Established\r\n\r\n")
 
 // HttpsHandler handles any connection which need connect method.
 // 处理https连接，主要用于CONNECT方法
-func (proxy *ProxyServer) HttpsHandler(rw http.ResponseWriter, req *http.Request, boost200 bool) {
+func (proxy *Handler) HttpsHandler(rw http.ResponseWriter, req *http.Request, boost200 bool) {
 	log.Info("%v tried to connect to %v", proxy.User, req.URL.Host)
 
 	hj, _ := rw.(http.Hijacker)
@@ -110,27 +112,26 @@ func (proxy *ProxyServer) HttpsHandler(rw http.ResponseWriter, req *http.Request
 		http.Error(rw, "Failed", http.StatusBadRequest)
 		return
 	}
-	var remote *net.TCPConn
 	if boost200 {
 		// 提前发送200，减少RTT时间
 		client.Write(HTTP_200)
 	}
-	remote, err := net.DialTCP("tcp", req.URL.Host) //建立服务端和代理服务器的tcp连接
+	remote, err := net.Dial("tcp", req.URL.Host) //建立服务端和代理服务器的tcp连接
 	if err != nil {
 		log.Error("%v failed to connect %v\n", proxy.User, req.RequestURI)
 		// If 200 is not sent, we can report the error to client.
 		if !boost200 {
-			resp = &http.Response{
+			resp := &http.Response{
 				StatusCode:      502,
 				ProtoMajor:      req.ProtoMajor,
 				ProtoMinor:      req.ProtoMinor,
 				Header:          make(http.Header),
-				Body:            err.Error(),
-				ContentLength:   len(err.Error()),
+				Body:            ioutil.NopCloser(bytes.NewBufferString(err.Error())),
+				ContentLength:   int64(len(err.Error())),
 				Close:           true,
 				Request:         req,
 			}
-			if err.Timeout() {
+			if err.(*net.OpError).Timeout() {
 				resp.StatusCode = 504
 			}
 			resp.Write(client)
