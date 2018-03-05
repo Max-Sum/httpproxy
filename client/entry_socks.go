@@ -8,13 +8,27 @@ import (
 )
 
 type EntrySocksServer struct {
+	Addr string
 	Tr *HTTPProxyClient
 }
 // NewEntryServer returns a new proxyserver.
-func NewEntryServer(client *HTTPProxyClient) *EntrySocksServer {
+func NewEntryServer(addr string, client *HTTPProxyClient) *EntrySocksServer {
 	return &EntrySocksServer{
+		Addr: addr
 		Tr: client
 	}
+}
+
+func (s *EntrySocksServer) ListenAndServe() error
+	addr := s.Addr
+	if addr == "" {
+		addr = ":1080"
+	}
+	l, err := tproxy.listen("tcp", s.Addr)
+	if err != nil {
+		return err
+	}
+	return s.Serve(l)
 }
 
 func (s *EntrySocksServer) Serve(l net.Listener) error

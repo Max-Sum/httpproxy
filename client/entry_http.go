@@ -13,8 +13,9 @@ type entryHttpHandler struct {
 }
 
 // NewEntryServer returns a new proxyserver.
-func NewEntryServer(client *HTTPProxyClient) *http.Server {
+func NewEntryServer(addr string, client *HTTPProxyClient) *http.Server {
 	return &http.Server{
+		Addr:           addr,
 		Handler:        &entryHttpHandler{Tr: client},
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
@@ -82,6 +83,7 @@ func (proxy *entryHttpHandler) HttpsHandler(rw http.ResponseWriter, req *http.Re
 
 	hj, _ := rw.(http.Hijacker)
 	client, _, err := hj.Hijack() //获取客户端与代理服务器的tcp连接
+	defer client.Close()
 	if err != nil {
 		log.Error("failed to get Tcp connection of \n", req.RequestURI)
 		http.Error(rw, "Failed", http.StatusBadRequest)
