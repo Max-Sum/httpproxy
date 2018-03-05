@@ -88,6 +88,9 @@ func (proxy *EntryHTTPServer) HttpsHandler(rw http.ResponseWriter, req *http.Req
 		http.Error(rw, "Failed", http.StatusBadRequest)
 		return
 	}
+	
+	// 提前发送200，减少RTT时间
+	client.Write(HTTP_200)
 	err = proxy.Tr.Redirect(client, req.URL.Host)
 	if err != nil {
 		log.Error("failed to connect %v\n", req.RequestURI)

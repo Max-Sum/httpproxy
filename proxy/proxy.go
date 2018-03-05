@@ -59,7 +59,8 @@ func (proxy *ProxyServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	if req.Method == "CONNECT" {
-		proxy.HttpsHandler(rw, req)
+		boost := req.Header.Get("X-Proxy-Boost") != "boosted"
+		proxy.HttpsHandler(rw, req, boost)
 	} else if cnfg.Cache == true && req.Method == "GET" {
 		proxy.CacheHandler(rw, req)
 	} else {
@@ -99,7 +100,7 @@ var HTTP_200 = []byte("HTTP/1.1 200 Connection Established\r\n\r\n")
 
 // HttpsHandler handles any connection which need connect method.
 // 处理https连接，主要用于CONNECT方法
-func (proxy *ProxyServer) HttpsHandler(rw http.ResponseWriter, req *http.Request) {
+func (proxy *ProxyServer) HttpsHandler(rw http.ResponseWriter, req *http.Request, boost bool) {
 	log.Info("%v tried to connect to %v", proxy.User, req.URL.Host)
 
 	hj, _ := rw.(http.Hijacker)
@@ -109,15 +110,38 @@ func (proxy *ProxyServer) HttpsHandler(rw http.ResponseWriter, req *http.Request
 		http.Error(rw, "Failed", http.StatusBadRequest)
 		return
 	}
-	// 提前发送200，减少RTT时间
-	client.Write(HTTP_200)
-
-	remote, err := net.Dial("tcp", req.URL.Host) //建立服务端和代理服务器的tcp连接
-	if err != nil {
-		log.Error("%v failed to connect %v\n", proxy.User, req.RequestURI)
-		// TODO write error msg.
-		client.Close()
-		return
+	if boost {
+		// 提前发送200，减少RTT时间
+		client.Write(HTTP_200)
+		remote, err := net.DialTCP("tcp", req.URL.Host) //建立服务端和代理服务器的tcp连接
+		if err != nil {
+			log.Error("%v failed to connect %v\n", proxy.User, req.RequestURI)
+			client.Write(fmt.Sprintf("Failed to connect to %s"), req.URL.Host)
+			client.Close()
+			return
+		}
+	} else {
+		remote, err := net.DialTCP("tcp", req.URL.Host) //建立服务端和代理服务器的tcp连接
+		if err != nil {
+			resp = &http.Response{
+				StatusCode:      502,
+				ProtoMajor:      req.ProtoMajor,
+				ProtoMinor:      req.ProtoMinor,
+				Header:          make(http.Header),
+				Body:            err.Error(),
+				ContentLength:   len(err.Error()),
+				Close:           true,
+				Request:         req,
+			}
+			log.Error("%v failed to connect %v\n", proxy.User, req.RequestURI)
+			if err.Timeout() {
+				resp.StatusCode = 504
+			}
+			resp.Write(client)
+			client.Close()
+			return
+		}
+		client.Write(HTTP_200)
 	}
 
 	go copyRemoteToClient(proxy.User, remote, client)

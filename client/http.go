@@ -24,6 +24,7 @@ func NewHTTPProxyClient(proxyURL *url.URL, TLSConfig *tls.Config) *HTTPProxyClie
 	header := make(http.Header)
 	header.Set("Proxy-Connection", "keep-alive")
 	header.Set("User-Agent", "HTTPProxy/1.0")
+	header.Set("X-Proxy-Boost", "boosted")
 	// Cache the base64 result
 	if proxyURL.User != nil && len(proxyURL.User.String()) > 0 {
 		header.Set("Proxy-Authorization",
