@@ -29,7 +29,6 @@ func (s *EntrySocksServer) Serve(l net.Listener) error
 
         log.Debug("connected from %s", c.RemoteAddr())
 
-        d := net.Dialer{Timeout: 10 * time.Second}
         c := socks.Conn{Conn: conn, Dial: s.dial}
         go c.Serve()
     }
