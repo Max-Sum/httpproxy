@@ -22,6 +22,7 @@ var log = logging.MustGetLogger("HTTP Proxy")
 var tlsConfig = &tls.Config{
 	MinVersion: tls.VersionTLS12,
 	InsecureSkipVerify: false,
+	ClientSessionCache: tls.NewLRUClientSessionCache(128),
 	CipherSuites: []uint16{
 		tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
 		tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
