@@ -68,7 +68,11 @@ func (s *EntryRedirectServer) Shutdown() error {
 
 func (s *EntryRedirectServer) handleTCPConn(conn *net.TCPConn) {
 	clientAddr := conn.RemoteAddr().String()
-	remoteAddr, err := s.getRemoteAddr(conn)
+	conn, remoteAddr, err := s.getRemoteAddr(conn)
+	log.Infof("Redir: Real remote addr %s", remoteAddr)
+	if err != nil {
+		log.Error("Redir: Failed to get remote address", err)
+	}
 	log.Debugf("Accepting TCP connection from %s with destination of %s", clientAddr, remoteAddr)
 	err = s.Tr.Redirect(conn, remoteAddr)
 	if err != nil {
@@ -77,37 +81,36 @@ func (s *EntryRedirectServer) handleTCPConn(conn *net.TCPConn) {
 	}
 }
 
-func (s *EntryRedirectServer) getRemoteAddr(c *net.TCPConn) (string, error) {
+func (s *EntryRedirectServer) getRemoteAddr(c *net.TCPConn) (*net.TCPConn, string, error) {
 	// test if the underlying fd is nil
 	remoteAddr := c.RemoteAddr()
 	if remoteAddr == nil {
-		return "", errors.New("getRemoteAddr: Underlying FileDescriptor is nil")
+		return c, "", errors.New("getRemoteAddr: Underlying FileDescriptor is nil")
 	}
 	// net.TCPConn.File() will cause the receiver's (clientConn) socket to be placed in blocking mode.
 	// The workaround is to take the File returned by .File(), do getsockopt() to get the original
 	// destination, then create a new *net.TCPConn by calling net.Conn.FileConn().  The new TCPConn
 	// will be in non-blocking mode. What a pain.
 	fc, err := c.File()
-	defer fc.Close()
 	if err != nil {
-		return "", err
+		return c, "", err
 	}
-	c.Close()
+	defer fc.Close()
 	// Recreate TCPConn
 	cc, err := net.FileConn(fc)
 	if err != nil {
-		return "", err
+		return nil, "", err
 	}
 	conn, ok := cc.(*net.TCPConn)
 	if !ok {
 		err = errors.New("getRemoteAddr: not a TCP connection")
-		return "", err
+		return nil, "", err
 	}
-	c = conn
+	c.Close()
 	// Get Actual Address
 	mreq, err := syscall.GetsockoptIPv6Mreq(int(fc.Fd()), syscall.IPPROTO_IP, 80)
 	if err != nil {
-		return "", err
+		return conn, "", err
 	}
 	var addr string
 	// TCPv4
@@ -115,5 +118,5 @@ func (s *EntryRedirectServer) getRemoteAddr(c *net.TCPConn) (string, error) {
 	port := uint16(mreq.Multiaddr[2])<<8 + uint16(mreq.Multiaddr[3])
 	addr = net.JoinHostPort(ip.String(), fmt.Sprint(port))
 	
-	return addr, nil
+	return conn, addr, nil
 }
