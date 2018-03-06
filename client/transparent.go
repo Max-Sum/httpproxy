@@ -75,7 +75,7 @@ func (s *EntryTproxyServer) handleTCPConn(conn net.Conn) {
 	log.Debugf("Accepting TCP connection from %s with destination of %s", conn.RemoteAddr().String(), conn.LocalAddr().String())
 	// LocalAddr is the real remote address.
 	// Think about it.
-	err := s.Tr.Redirect(conn.(*net.TCPConn), conn.LocalAddr().String())
+	err := s.Tr.Redirect(conn, conn.LocalAddr().String())
 	if err != nil {
 		log.Errorf("Failed to connect to original destination [%s]: %s", conn.LocalAddr().String(), err)
 		conn.Close()
