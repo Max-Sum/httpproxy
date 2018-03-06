@@ -123,7 +123,7 @@ func (p *HTTPProxyClient) connect(targetAddr string) (net.Conn, error) {
 	req := &http.Request{
 		Method: http.MethodConnect,
 		URL:    &url.URL{Opaque: targetAddr, Path: targetAddr},
-		Host:   p.ProxyURL.Hostname(),
+		Host:   cnfg.Hostname,
 		Header: p.ConnectHeader,
 	}
 	// Get connection from pool

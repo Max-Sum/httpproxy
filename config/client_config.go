@@ -14,6 +14,9 @@ type Client struct {
 	// 代理服务器工作端口,eg:":8080"
 	Proxy string `json:"listen"`
 
+	// 代理服务器域名
+	Hostname string `json:"hostname"`
+
 	// web管理端口
 	WebListen string `json:"weblisten"`
 

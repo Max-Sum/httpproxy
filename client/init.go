@@ -45,7 +45,7 @@ func Initialize(c config.Client) {
 		log.Fatal("Failed to parse proxy URL", err)
 	}
 	tlsConfig.InsecureSkipVerify = cnfg.InsecureSkipVerify
-	tlsConfig.ServerName = proxyURL.Hostname()
+	tlsConfig.ServerName = cnfg.Hostname
 	client = NewHTTPProxyClient(proxyURL, tlsConfig)
 	client.SetBasicAuth(cnfg.Username, cnfg.Password)
 	// Initialize Entrypoints
