@@ -57,7 +57,6 @@ func (proxy *entryHTTPHandler) HTTPHandler(rw http.ResponseWriter, req *http.Req
 	SanitizeRequest(req)
 	RmProxyHeaders(req)
 
-	
 	resp, err := proxy.Tr.RoundTrip(req)
 	if err != nil {
 		log.Errorf("HTTP Entry: %v", err)

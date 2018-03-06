@@ -49,10 +49,10 @@ func NewHTTPProxyClient(proxyURL *url.URL, TLSConfig *tls.Config) *HTTPProxyClie
 	// Create connection pool
 	poolConfig := &pool.PoolConfig{
 		InitialCap: 0,
-		MaxCap:     30,
+		MaxCap:     cnfg.MaxIdleConnections,
 		Factory:    client.factory,
 		Close:      func(c interface{}) error { return c.(net.Conn).Close() },
-		IdleTimeout: time.Minute,
+		IdleTimeout: cnfg.IdleTime * time.Second,
 	}
 	pool, err := pool.NewChannelPool(poolConfig)
 	if err != nil {

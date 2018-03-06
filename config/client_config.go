@@ -38,6 +38,12 @@ type Client struct {
 	// 忽略 TLS 证书检查
 	InsecureSkipVerify bool `json:"insecure"`
 
+	// 连接保持时间
+	IdleTime int `json:"idletime"`
+
+	// 最大空闲连接数
+	MaxIdelConnections int `json:"maxconn"`
+
 	// 日志信息，1输出Debug信息，0输出普通监控信息
 	LogLevel int `json:"loglevel"`
 }
