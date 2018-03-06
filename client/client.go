@@ -1,18 +1,18 @@
 package client
 
 import (
+	"io"
 	"bufio"
 	"context"
 	"crypto/tls"
 	"strings"
 	"encoding/base64"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"time"
-	"github.com/fatih/pool"
+	"github.com/silenceper/pool"
 )
 
 // HTTPProxyClient is a backend client.
@@ -47,7 +47,14 @@ func NewHTTPProxyClient(proxyURL *url.URL, TLSConfig *tls.Config) *HTTPProxyClie
 		Cancel:        cancelFn,
 	}
 	// Create connection pool
-	pool, err := pool.NewChannelPool(0, 30, client.factory)
+	poolConfig := &pool.PoolConfig{
+		InitialCap: 0,
+		MaxCap:     30,
+		Factory:    client.factory,
+		Close:      func(c interface{}) error { return c.(net.Conn).Close() },
+		IdleTimeout: time.Minute,
+	}
+	pool, err := pool.NewChannelPool(poolConfig)
 	if err != nil {
 		log.Fatalf("HTTP Proxy: Error when creating connection pool: %s", err)
 		return nil
@@ -71,7 +78,7 @@ func (p *HTTPProxyClient) SetBasicAuth(username, password string) error {
 	return nil
 }
 
-func (p *HTTPProxyClient) factory() (net.Conn, error) {
+func (p *HTTPProxyClient) factory() (interface{}, error) {
 	var conn net.Conn
 	var err  error
 	switch scheme := p.ProxyURL.Scheme; scheme {
@@ -89,28 +96,26 @@ func (p *HTTPProxyClient) factory() (net.Conn, error) {
 }
 
 // get a connection and check if it's still usable.
-func (p *HTTPProxyClient) getConn() (*pool.PoolConn, error) {
-	c, err := p.Pool.Get()
+func (p *HTTPProxyClient) getConn() (net.Conn, error) {
+	v, err := p.Pool.Get()
 	if err != nil {
 		return nil, err
 	}
-	pc, ok := c.(*pool.PoolConn);
+	c, ok := v.(net.Conn);
 	if !ok {
-		return nil, fmt.Errorf("HTTP Proxy: Cannot cast connection into PoolConn")
+		return nil, fmt.Errorf("HTTP Proxy: Cannot get netConn")
 	}
-	one := []byte{}
-	pc.SetReadDeadline(time.Now())
-	if _, err := pc.Read(one); err == io.EOF || pc.Conn == nil {
+	one := []byte{0}
+	c.SetReadDeadline(time.Now().Add(10 * time.Microsecond))
+	if _, err := c.Read(one); err == io.EOF {
 		// Abandon expired connections
 		// and get a new one.
-		log.Debug("HTTP Proxy: Connection expired, abandon")
-		pc.MarkUnusable()
-		pc.Close()
-		// get a new one
+		log.Info("HTTP Proxy: Connection closed, abandon")
+		c.Close()
 		return p.getConn()
 	}
-	pc.SetReadDeadline(time.Time{})
-	return pc, nil
+	c.SetReadDeadline(time.Time{})
+	return c, nil
 }
 
 func (p *HTTPProxyClient) connect(targetAddr string) (net.Conn, error) {
@@ -144,21 +149,19 @@ func (p *HTTPProxyClient) Dial(targetAddr string) (net.Conn, error) {
 		return nil, err
 	}
 	conn, err := p.connect(targetAddr)
-	pc := conn.(*pool.PoolConn)
 	if err != nil {
 		return nil, err
 	}
 	resp, err := http.ReadResponse(bufio.NewReader(conn), &http.Request{Method: http.MethodConnect})
 	if err != nil {
-		pc.Close()
+		p.Pool.Put(conn)
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
 		f := strings.SplitN(resp.Status, " ", 2)
-		pc.Close()
+		p.Pool.Put(conn)
 		return nil, fmt.Errorf(f[1])
 	}
-	pc.MarkUnusable()
 	return conn, nil
 }
 
@@ -170,7 +173,6 @@ func (p *HTTPProxyClient) Redirect(srcConn net.Conn, targetAddr string) error {
 		return err
 	}
 	conn, err := p.connect(targetAddr)
-	pc := conn.(*pool.PoolConn)
 	if err != nil {
 		return err
 	}
@@ -181,15 +183,14 @@ func (p *HTTPProxyClient) Redirect(srcConn net.Conn, targetAddr string) error {
 	go CopyIO(conn, srcConn, term)
 	resp, err := http.ReadResponse(bufio.NewReader(conn), &http.Request{Method: http.MethodConnect})
 	if err != nil {
-		pc.Close()
+		p.Pool.Put(conn)
 		return err
 	}
 	if resp.StatusCode != http.StatusOK {
 		f := strings.SplitN(resp.Status, " ", 2)
-		pc.Close()
+		p.Pool.Put(conn)
 		return fmt.Errorf(f[1])
 	}
-	pc.MarkUnusable()
 	// Start to copy other
 	go CopyIO(srcConn, conn, term)
 	// Send Signal to the first go routine.
@@ -199,23 +200,23 @@ func (p *HTTPProxyClient) Redirect(srcConn net.Conn, targetAddr string) error {
 // RoundTrip request normal http request
 func (p *HTTPProxyClient) RoundTrip(req *http.Request) (*http.Response, error) {
 	// Get connection from pool
-	pc, err := p.getConn()
-	defer pc.Close()
+	c, err := p.getConn()
 	if err != nil {
 		log.Errorf("HTTP Proxy: Cannot get connection from pool: %s", err)
 	}
 	// Add Password
 	req.Header.Set("Proxy-Authorization", p.ConnectHeader.Get("Proxy-Authorization"))
 	// Send Request to the Connection
-	err = req.WriteProxy(pc)
+	err = req.WriteProxy(c)
 	if err != nil {
 		return nil, err
 	}
 	// Read reasponse
-	reader := bufio.NewReader(pc)
+	reader := bufio.NewReader(c)
 	resp, err := http.ReadResponse(reader, req)
 	if err != nil {
 		return nil, err
 	}
+	p.Pool.Put(c)
 	return resp, nil
 }

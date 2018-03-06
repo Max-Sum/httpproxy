@@ -124,7 +124,10 @@ func Close() error {
 			return err
 		}
 	}
+	// Cancel alll connection in client
 	client.Cancel()
+	// Shutdown the pool
+	client.Pool.Release()
 	return nil
 }
 
