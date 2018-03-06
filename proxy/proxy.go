@@ -43,7 +43,7 @@ func (proxy *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	defer func() {
 		if err := recover(); err != nil {
 			rw.WriteHeader(http.StatusInternalServerError)
-			log.Debug("Panic: %v\n", err)
+			log.Debugf("Panic: ", err)
 			fmt.Fprintf(rw, fmt.Sprintln(err))
 		}
 	}()
@@ -73,13 +73,13 @@ func (proxy *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 //HttpHandler handles http connections.
 //处理普通的http请求
 func (proxy *Handler) HttpHandler(rw http.ResponseWriter, req *http.Request) {
-	log.Info("%v is sending request %v %v \n", proxy.User, req.Method, req.Host)
+	log.Infof("%s is sending request %s %s", proxy.User, req.Method, req.Host)
 	SanitizeRequest(req)
 	RmProxyHeaders(req)
 
 	resp, err := proxy.Tr.RoundTrip(req)
 	if err != nil {
-		log.Error("%v", err)
+		log.Error(err)
 		http.Error(rw, err.Error(), 500)
 		return
 	}
@@ -92,10 +92,10 @@ func (proxy *Handler) HttpHandler(rw http.ResponseWriter, req *http.Request) {
 
 	nr, err := io.Copy(rw, resp.Body)
 	if err != nil && err != io.EOF {
-		log.Error("%v got an error when copy remote response to client.%v\n", proxy.User, err)
+		log.Errorf("%s got an error when copy remote response to client.%v", proxy.User, err)
 		return
 	}
-	log.Info("%v copied %v bytes from %v.\n", proxy.User, nr, req.URL.Host)
+	log.Infof("%s copied %d bytes from %s", proxy.User, nr, req.URL.Host)
 }
 
 var HTTP_200 = []byte("HTTP/1.1 200 Connection Established\r\n\r\n")
@@ -103,12 +103,12 @@ var HTTP_200 = []byte("HTTP/1.1 200 Connection Established\r\n\r\n")
 // HttpsHandler handles any connection which need connect method.
 // 处理https连接，主要用于CONNECT方法
 func (proxy *Handler) HttpsHandler(rw http.ResponseWriter, req *http.Request, boost200 bool) {
-	log.Info("%v tried to connect to %v", proxy.User, req.URL.Host)
+	log.Infof("%s tried to connect to %s", proxy.User, req.URL.Host)
 
 	hj, _ := rw.(http.Hijacker)
 	client, _, err := hj.Hijack() //获取客户端与代理服务器的tcp连接
 	if err != nil {
-		log.Error("%v failed to get Tcp connection of \n", proxy.User, req.RequestURI)
+		log.Errorf("%s failed to get Tcp connection of %s", proxy.User, req.RequestURI)
 		http.Error(rw, "Failed", http.StatusBadRequest)
 		return
 	}
@@ -118,7 +118,7 @@ func (proxy *Handler) HttpsHandler(rw http.ResponseWriter, req *http.Request, bo
 	}
 	remote, err := net.Dial("tcp", req.URL.Host) //建立服务端和代理服务器的tcp连接
 	if err != nil {
-		log.Error("%v failed to connect %v\n", proxy.User, req.RequestURI)
+		log.Errorf("%s failed to connect %s", proxy.User, req.RequestURI)
 		// If 200 is not sent, we can report the error to client.
 		if !boost200 {
 			resp := &http.Response{
