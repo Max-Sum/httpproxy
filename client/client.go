@@ -197,6 +197,24 @@ func (p *HTTPProxyClient) Redirect(srcConn net.Conn, targetAddr string) error {
 	return nil
 }
 
+// A custom body contains a afterClose hook
+type body struct {
+	src         io.ReadCloser
+	afterClose  func() error
+}
+
+func (b *body) Read(p []byte) (n int, err error) {
+	return b.src.Read(p)
+}
+
+// before closing the body, trigger afterClose hook
+func (b* body) Close() (err error) {
+	if err := b.src.Close(); err != nil {
+		return err
+	}
+	return b.afterClose()
+}
+
 // RoundTrip request normal http request
 func (p *HTTPProxyClient) RoundTrip(req *http.Request) (*http.Response, error) {
 	// Get connection from pool
@@ -206,6 +224,7 @@ func (p *HTTPProxyClient) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 	// Add Password
 	req.Header.Set("Proxy-Authorization", p.ConnectHeader.Get("Proxy-Authorization"))
+
 	// Send Request to the Connection
 	err = req.WriteProxy(c)
 	if err != nil {
@@ -214,9 +233,18 @@ func (p *HTTPProxyClient) RoundTrip(req *http.Request) (*http.Response, error) {
 	// Read reasponse
 	reader := bufio.NewReader(c)
 	resp, err := http.ReadResponse(reader, req)
+	// New body
+	b := &body {
+		src: resp.Body,
+		afterClose: func() error {
+			log.Info("body hook: put back connection")
+			p.Pool.Put(c)
+			return nil
+		},
+	}
+	resp.Body = b
 	if err != nil {
 		return nil, err
 	}
-	p.Pool.Put(c)
 	return resp, nil
 }
