@@ -83,7 +83,7 @@ var http200 = []byte("HTTP/1.1 200 Connection Established\r\n\r\n")
 // HTTPSHandler handles any connection which need connect method.
 // 处理https连接，主要用于CONNECT方法
 func (proxy *entryHTTPHandler) HTTPSHandler(rw http.ResponseWriter, req *http.Request) {
-	log.Debugf("HTTP Entry: Tried to connect to %s", req.URL.Host)
+	log.Infof("HTTP Entry: connecting to %s", req.URL.Host)
 
 	hj, _ := rw.(http.Hijacker)
 	client, _, err := hj.Hijack() //获取客户端与代理服务器的tcp连接

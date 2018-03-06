@@ -54,7 +54,6 @@ func CopyIO(dst, src net.Conn, terminate chan bool) {
 	defer func() {
 		// The first goroutine will only try to half close
 		// The second goroutine close both forcefully.
-		log.Debugf("CopyIO: Closing")
 		if <- terminate {
 			log.Debugf("CopyIO: Close %s <-> %s", dst.RemoteAddr(), src.RemoteAddr())
 			dst.Close()
@@ -72,11 +71,12 @@ func CopyIO(dst, src net.Conn, terminate chan bool) {
 			terminate <- true
 		}
 	}()
-	_, err := io.Copy(dst, src)
+	bytes, err := io.Copy(dst, src)
 	if err != nil && err != io.EOF {
 		log.Errorf("Got an error when copying %v", err)
 		return
 	}
+	log.Infof("CopyIO: copied %d bytes %s to %s", bytes, src.RemoteAddr(), dst.RemoteAddr())
 }
 
 // CopyHeaders copy headers from source to destination.
