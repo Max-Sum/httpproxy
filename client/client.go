@@ -2,11 +2,13 @@ package client
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -172,17 +174,21 @@ func (p *HTTPProxyClient) connect(targetAddr string) (net.Conn, error) {
 func (p *HTTPProxyClient) Dial(targetAddr string) (net.Conn, error) {
 	conn, err := p.connect(targetAddr)
 	if err != nil {
+		log.Error("HTTP Proxy: Failed to write request to connection", err)
 		return nil, err
 	}
 	resp, err := http.ReadResponse(bufio.NewReader(conn), &http.Request{Method: http.MethodConnect})
 	if err != nil {
 		p.Pool.Put(conn)
+		log.Error("HTTP Proxy: Failed to read response", err)
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
 		f := strings.SplitN(resp.Status, " ", 2)
+		err := fmt.Errorf("HTTP Proxy: Got %s from proxy. Error reported: %s", f[1], resp.Body)
+		log.Error(err)
 		p.Pool.Put(conn)
-		return nil, fmt.Errorf(f[1])
+		return nil, err
 	}
 	return conn, nil
 }
@@ -238,7 +244,9 @@ func (p *HTTPProxyClient) RoundTrip(req *http.Request) (*http.Response, error) {
 	// Get connection from pool
 	c, err := p.getConn()
 	if err != nil {
-		log.Errorf("HTTP Proxy: Cannot get connection from pool: %s", err)
+		err := fmt.Errorf("HTTP Proxy: Cannot get connection from pool: %s", err.Error())
+		log.Error(err)
+		return p.responseError(req, err), err
 	}
 	// Probe the address
 	host := p.probeAddress(req.URL.Hostname())
@@ -260,6 +268,11 @@ func (p *HTTPProxyClient) RoundTrip(req *http.Request) (*http.Response, error) {
 	// Read reasponse
 	reader := bufio.NewReader(c)
 	resp, err := http.ReadResponse(reader, req)
+	if err != nil {
+		err := fmt.Errorf("HTTP Proxy: Failed to read response: %s", err.Error())
+		log.Error(err)
+		return p.responseError(req, err), err
+	}
 	// New body
 	b := &body{
 		src: resp.Body,
@@ -270,8 +283,19 @@ func (p *HTTPProxyClient) RoundTrip(req *http.Request) (*http.Response, error) {
 		},
 	}
 	resp.Body = b
-	if err != nil {
-		return nil, err
-	}
 	return resp, nil
+}
+
+func (p *HTTPProxyClient) responseError(req *http.Request, err error) *http.Response {
+	return &http.Response{
+		Status: "Internal Error",
+		StatusCode: 500,
+		ProtoMajor: req.ProtoMajor,
+		ProtoMinor: req.ProtoMinor,
+		Header:          make(http.Header),
+		Body:            ioutil.NopCloser(bytes.NewBufferString(err.Error())),
+		ContentLength:   int64(len(err.Error())),
+		Close:           true,
+		Request:         req,
+	}
 }
