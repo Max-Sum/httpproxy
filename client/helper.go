@@ -1,12 +1,10 @@
 package client
 
 import (
-	"fmt"
 	"io"
 	"net"
 	"net/url"
 	"net/http"
-	"regexp"
 )
 
 var portMap = map[string]string{
@@ -24,21 +22,6 @@ func canonicalAddr(url *url.URL) string {
 		port = portMap[url.Scheme]
 	}
 	return net.JoinHostPort(addr, port)
-}
-
-var addrRegexp *regexp.Regexp
-func santinizeAddr(addr string) (string, error) {
-	var err error
-	if addrRegexp == nil {
-		addrRegexp, err = regexp.Compile("^(([^:/\\\\]*)|(\\[[0-9a-f:]*\\])):(\\d{1,5})$")
-		if err != nil {
-			return "", err
-		}
-	}
-	if !addrRegexp.MatchString(addr) {
-		return "", fmt.Errorf("SanitizeAddr: Invalid address %s", addr)
-	}
-	return addr, nil
 }
 
 type closeRead interface {

@@ -2,11 +2,11 @@
 package config
 
 import (
-	"time"
 	"bufio"
 	"encoding/json"
 	"os"
 	"strings"
+	"time"
 )
 
 // Client 客户端的配置
@@ -38,6 +38,15 @@ type Client struct {
 
 	// TProxy 监听地址
 	TProxyListen string `json:"tproxy"`
+
+	// Bogus DNS 监听地址
+	DNSListen string `json:"dns"`
+
+	// Bogus DNS 伪 IP 前缀
+	DNSPrefix string `json:"dnsprefix"`
+
+	// Bogus DNS TTL
+	DNSTTL uint `json:"dnsttl"`
 
 	// 忽略 TLS 证书检查
 	InsecureSkipVerify bool `json:"insecure"`

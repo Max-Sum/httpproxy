@@ -2,16 +2,20 @@ package client
 
 import (
 	"context"
-	"net/url"
 	"crypto/tls"
-	"runtime"
-	"github.com/op/go-logging"
 	"httpproxy/config"
+	"net"
+	"net/url"
+	"runtime"
+	"time"
+
+	"github.com/op/go-logging"
 )
 
 var (
 	cnfg     config.Client
 	client   *HTTPProxyClient
+	bogusdns *BogusDNS
 	enhttp   *EntryHTTPServer
 	ensocks  *EntrySocksServer
 	entproxy *EntryTproxyServer
@@ -20,7 +24,7 @@ var (
 
 var log = logging.MustGetLogger("HTTP Proxy")
 var tlsConfig = &tls.Config{
-	MinVersion: tls.VersionTLS12,
+	MinVersion:         tls.VersionTLS12,
 	InsecureSkipVerify: false,
 	ClientSessionCache: tls.NewLRUClientSessionCache(128),
 	CipherSuites: []uint16{
@@ -39,6 +43,12 @@ var tlsConfig = &tls.Config{
 func Initialize(c config.Client) {
 	cnfg = c
 	setLog()
+	// Initialize Bogus DNS Server
+	if cnfg.DNSListen != "" {
+		prefix := net.ParseIP(cnfg.DNSPrefix)
+		bogusdns = NewBogusDNS(cnfg.DNSListen, prefix, time.Duration(cnfg.DNSTTL)*time.Second)
+		go bogusdns.ListenAndServe()
+	}
 	// Initialize Proxy client
 	proxyURL, err := url.Parse(cnfg.Proxy)
 	if err != nil {
@@ -46,7 +56,7 @@ func Initialize(c config.Client) {
 	}
 	tlsConfig.InsecureSkipVerify = cnfg.InsecureSkipVerify
 	tlsConfig.ServerName = cnfg.Hostname
-	client = NewHTTPProxyClient(proxyURL, tlsConfig)
+	client = NewHTTPProxyClient(proxyURL, tlsConfig, bogusdns)
 	client.SetBasicAuth(cnfg.Username, cnfg.Password)
 	// Initialize Entrypoints
 	if cnfg.HTTPListen != "" {

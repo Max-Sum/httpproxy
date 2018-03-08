@@ -8,7 +8,7 @@ import (
 )
 
 type entryHTTPHandler struct {
-	Tr   *HTTPProxyClient
+	tr   *HTTPProxyClient
 }
 
 // EntryHTTPServer is normal HTTP entrypoint.
@@ -20,7 +20,7 @@ type EntryHTTPServer struct {
 func NewEntryHTTPServer(addr string, client *HTTPProxyClient) *EntryHTTPServer {
 	return &EntryHTTPServer{&http.Server{
 		Addr:           addr,
-		Handler:        &entryHTTPHandler{Tr: client},
+		Handler:        &entryHTTPHandler{tr: client},
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,
@@ -57,7 +57,7 @@ func (proxy *entryHTTPHandler) HTTPHandler(rw http.ResponseWriter, req *http.Req
 	SanitizeRequest(req)
 	RmProxyHeaders(req)
 
-	resp, err := proxy.Tr.RoundTrip(req)
+	resp, err := proxy.tr.RoundTrip(req)
 	if err != nil {
 		log.Errorf("HTTP Entry: %v", err)
 		http.Error(rw, err.Error(), 500)
@@ -95,7 +95,7 @@ func (proxy *entryHTTPHandler) HTTPSHandler(rw http.ResponseWriter, req *http.Re
 	
 	// 提前发送200，减少RTT时间
 	client.Write(http200)
-	err = proxy.Tr.Redirect(client, req.URL.Host)
+	err = proxy.tr.Redirect(client, req.URL.Host)
 	if err != nil {
 		log.Errorf("HTTP Entry: Failed to connect to %s", req.RequestURI)
 		log.Error(err)

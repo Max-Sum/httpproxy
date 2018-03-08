@@ -1,17 +1,18 @@
 package client
 
 import (
-	"io"
 	"bufio"
 	"context"
 	"crypto/tls"
-	"strings"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
+
 	"github.com/silenceper/pool"
 )
 
@@ -24,10 +25,11 @@ type HTTPProxyClient struct {
 	TLSConfig     *tls.Config
 	Pool          pool.Pool
 	ctx           context.Context
+	bogusDNS      *BogusDNS
 }
 
 // NewHTTPProxyClient creates a new HTTPProxyClient object.
-func NewHTTPProxyClient(proxyURL *url.URL, TLSConfig *tls.Config) *HTTPProxyClient {
+func NewHTTPProxyClient(proxyURL *url.URL, TLSConfig *tls.Config, bogus *BogusDNS) *HTTPProxyClient {
 	header := make(http.Header)
 	header.Set("Proxy-Connection", "keep-alive")
 	header.Set("User-Agent", "HTTPProxy/1.0")
@@ -35,23 +37,24 @@ func NewHTTPProxyClient(proxyURL *url.URL, TLSConfig *tls.Config) *HTTPProxyClie
 	// Cache the base64 result
 	if proxyURL.User != nil && len(proxyURL.User.String()) > 0 {
 		header.Set("Proxy-Authorization",
-			"Basic " + base64.StdEncoding.EncodeToString([]byte(proxyURL.User.String())))
+			"Basic "+base64.StdEncoding.EncodeToString([]byte(proxyURL.User.String())))
 	}
 	// Set default context
 	ctx, cancelFn := context.WithCancel(context.Background())
-	client := &HTTPProxyClient {
+	client := &HTTPProxyClient{
 		ProxyURL:      *proxyURL,
 		ConnectHeader: header,
 		TLSConfig:     TLSConfig,
 		ctx:           ctx,
 		Cancel:        cancelFn,
+		bogusDNS:      bogus,
 	}
 	// Create connection pool
 	poolConfig := &pool.PoolConfig{
-		InitialCap: 0,
-		MaxCap:     cnfg.MaxIdleConnections,
-		Factory:    client.factory,
-		Close:      func(c interface{}) error { return c.(net.Conn).Close() },
+		InitialCap:  0,
+		MaxCap:      cnfg.MaxIdleConnections,
+		Factory:     client.factory,
+		Close:       func(c interface{}) error { return c.(net.Conn).Close() },
 		IdleTimeout: cnfg.IdleTime * time.Second,
 	}
 	pool, err := pool.NewChannelPool(poolConfig)
@@ -65,7 +68,7 @@ func NewHTTPProxyClient(proxyURL *url.URL, TLSConfig *tls.Config) *HTTPProxyClie
 
 // SetBasicAuth sets username and password for a HTTPProxyClient object.
 func (p *HTTPProxyClient) SetBasicAuth(username, password string) error {
-	if len(username) + len(password) == 0 {
+	if len(username)+len(password) == 0 {
 		p.ConnectHeader.Del("Proxy-Authorization")
 	} else {
 		var user = url.UserPassword(username, password)
@@ -73,14 +76,14 @@ func (p *HTTPProxyClient) SetBasicAuth(username, password string) error {
 			return fmt.Errorf("invalid username or password inserted")
 		}
 		p.ConnectHeader.Set("Proxy-Authorization",
-			"Basic " + base64.StdEncoding.EncodeToString([]byte(user.String())))
+			"Basic "+base64.StdEncoding.EncodeToString([]byte(user.String())))
 	}
 	return nil
 }
 
 func (p *HTTPProxyClient) factory() (interface{}, error) {
 	var conn net.Conn
-	var err  error
+	var err error
 	switch scheme := p.ProxyURL.Scheme; scheme {
 	case "http":
 		conn, err = (&net.Dialer{}).DialContext(p.ctx, "tcp", p.ProxyURL.Host)
@@ -101,7 +104,7 @@ func (p *HTTPProxyClient) getConn() (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	c, ok := v.(net.Conn);
+	c, ok := v.(net.Conn)
 	if !ok {
 		return nil, fmt.Errorf("HTTP Proxy: Cannot get netConn")
 	}
@@ -118,11 +121,34 @@ func (p *HTTPProxyClient) getConn() (net.Conn, error) {
 	return c, nil
 }
 
+// probeAddress check if the address is a bogus IP,
+// and try to translate it back to original address
+func (p *HTTPProxyClient) probeAddress(host string) string {
+	if p.bogusDNS == nil {
+		return host
+	}
+	ip := net.ParseIP(host)
+	orig, err := p.bogusDNS.GetAddress(ip)
+	if err != nil {
+		log.Debug(err)
+		return host
+	}
+	log.Debugf("HTTP Proxy: got generic address %s from bogus IP %s", orig, host)
+	return orig
+}
+
 func (p *HTTPProxyClient) connect(targetAddr string) (net.Conn, error) {
+	// Parse Host
+	host, port, err := net.SplitHostPort(targetAddr)
+	if err != nil {
+		return nil, err
+	}
+	host = p.probeAddress(host)
+	addr := net.JoinHostPort(host, port)
 	// Only Do CONNECT Method
 	req := &http.Request{
 		Method: http.MethodConnect,
-		URL:    &url.URL{Opaque: targetAddr, Path: targetAddr},
+		URL:    &url.URL{Opaque: addr, Path: addr},
 		Host:   cnfg.Hostname,
 		Header: p.ConnectHeader,
 	}
@@ -144,10 +170,6 @@ func (p *HTTPProxyClient) connect(targetAddr string) (net.Conn, error) {
 // It returns after receiving 200 Connection Established.
 // It will not send out any message.
 func (p *HTTPProxyClient) Dial(targetAddr string) (net.Conn, error) {
-	targetAddr, err := santinizeAddr(targetAddr)
-	if err != nil {
-		return nil, err
-	}
 	conn, err := p.connect(targetAddr)
 	if err != nil {
 		return nil, err
@@ -168,10 +190,6 @@ func (p *HTTPProxyClient) Dial(targetAddr string) (net.Conn, error) {
 // Redirect Connects to the proxy and Copy from the given connection.
 // Using Redirect rather than Dial to save one RTT.
 func (p *HTTPProxyClient) Redirect(srcConn net.Conn, targetAddr string) error {
-	targetAddr, err := santinizeAddr(targetAddr)
-	if err != nil {
-		return err
-	}
 	conn, err := p.connect(targetAddr)
 	if err != nil {
 		return err
@@ -199,8 +217,8 @@ func (p *HTTPProxyClient) Redirect(srcConn net.Conn, targetAddr string) error {
 
 // A custom body contains a afterClose hook
 type body struct {
-	src         io.ReadCloser
-	afterClose  func() error
+	src        io.ReadCloser
+	afterClose func() error
 }
 
 func (b *body) Read(p []byte) (n int, err error) {
@@ -208,7 +226,7 @@ func (b *body) Read(p []byte) (n int, err error) {
 }
 
 // before closing the body, trigger afterClose hook
-func (b* body) Close() (err error) {
+func (b *body) Close() (err error) {
 	if err := b.src.Close(); err != nil {
 		return err
 	}
@@ -222,10 +240,19 @@ func (p *HTTPProxyClient) RoundTrip(req *http.Request) (*http.Response, error) {
 	if err != nil {
 		log.Errorf("HTTP Proxy: Cannot get connection from pool: %s", err)
 	}
+	// Probe the address
+	host := p.probeAddress(req.URL.Hostname())
+	port := req.URL.Port()
+	if port != "" {
+		host = net.JoinHostPort(host, port)
+	}
+	req.URL.Host = host
+	req.Host = host
 	// Add Password
 	req.Header.Set("Proxy-Authorization", p.ConnectHeader.Get("Proxy-Authorization"))
 
 	// Send Request to the Connection
+	log.Debugf("HTTP Proxy: sending a request to %v", req.URL)
 	err = req.WriteProxy(c)
 	if err != nil {
 		return nil, err
@@ -234,7 +261,7 @@ func (p *HTTPProxyClient) RoundTrip(req *http.Request) (*http.Response, error) {
 	reader := bufio.NewReader(c)
 	resp, err := http.ReadResponse(reader, req)
 	// New body
-	b := &body {
+	b := &body{
 		src: resp.Body,
 		afterClose: func() error {
 			log.Info("body hook: put back connection")
