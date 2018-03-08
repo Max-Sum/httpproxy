@@ -2,13 +2,11 @@ package client
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -246,7 +244,7 @@ func (p *HTTPProxyClient) RoundTrip(req *http.Request) (*http.Response, error) {
 	if err != nil {
 		err := fmt.Errorf("HTTP Proxy: Cannot get connection from pool: %s", err.Error())
 		log.Error(err)
-		return p.responseError(req, err), err
+		return nil, err
 	}
 	// Probe the address
 	host := p.probeAddress(req.URL.Hostname())
@@ -271,7 +269,7 @@ func (p *HTTPProxyClient) RoundTrip(req *http.Request) (*http.Response, error) {
 	if err != nil {
 		err := fmt.Errorf("HTTP Proxy: Failed to read response: %s", err.Error())
 		log.Error(err)
-		return p.responseError(req, err), err
+		return nil, err
 	}
 	// New body
 	b := &body{
@@ -284,18 +282,4 @@ func (p *HTTPProxyClient) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 	resp.Body = b
 	return resp, nil
-}
-
-func (p *HTTPProxyClient) responseError(req *http.Request, err error) *http.Response {
-	return &http.Response{
-		Status: "Internal Error",
-		StatusCode: 500,
-		ProtoMajor: req.ProtoMajor,
-		ProtoMinor: req.ProtoMinor,
-		Header:          make(http.Header),
-		Body:            ioutil.NopCloser(bytes.NewBufferString(err.Error())),
-		ContentLength:   int64(len(err.Error())),
-		Close:           true,
-		Request:         req,
-	}
 }
