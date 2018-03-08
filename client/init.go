@@ -144,18 +144,30 @@ func Close() error {
 //setLog() sets log output format.
 func setLog() {
 	var level logging.Level
-	if cnfg.LogLevel == 1 {
-		level = logging.DEBUG
-	} else {
+	switch cnfg.LogLevel {
+	case 0:
+		level = logging.CRITICAL
+		break
+	default:
+	case 1:
+		level = logging.ERROR
+		break
+	case 2:
+		level = logging.WARNING
+		break
+	case 3:
+		level = logging.NOTICE
+		break
+	case 4:
 		level = logging.INFO
+		break
+	case 5:
+		level = logging.DEBUG
+		break
 	}
 
 	var format logging.Formatter
-	if level == logging.DEBUG {
-		format = logging.MustStringFormatter("%{shortfile} %{level} %{message}")
-	} else {
-		format = logging.MustStringFormatter("%{level} %{message}")
-	}
+	format = logging.MustStringFormatter("%{color}%{shortfunc}	▶ %{level:.4s} %{color:reset} %{message}")
 	logging.SetFormatter(format)
 	logging.SetLevel(level, "HTTP Proxy")
 }

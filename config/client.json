@@ -1,5 +1,5 @@
 {
-    "listen":"https://8.8.8.8:443",
+    "listen":"https://127.0.0.1:443",
     "weblisten":"tcp://127.0.0.1:6060?tls=1.2\u0026cert=/Users/Max/certificates/combined.crt\u0026key=/Users/Max/certificates/combined.key",
     "hostname":"www.google.com",
     "username":"",
@@ -15,5 +15,5 @@
     "insecure": false,
     "idletime": 20,
     "maxconn" : 15,
-    "loglevel": 0
+    "loglevel": 5
 }
