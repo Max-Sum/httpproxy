@@ -84,7 +84,7 @@ func Initialize(c config.Client) {
 			log.Fatal(err)
 		}
 		if cnfg.DNSMasqCfg != "" {
-			file, err := os.OpenFile(cnfg.DNSMasqCfg, os.O_RDWR|os.O_CREATE, 0644)
+			file, err := os.OpenFile(cnfg.DNSMasqCfg, os.O_WRONLY|os.O_CREATE, 0644)
 			if err != nil {
 				log.Fatal(err)
 			}

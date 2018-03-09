@@ -208,13 +208,7 @@ func (s *BogusDNS) WriteDNSMasqConfig(w io.Writer, blacklist []string) error {
 	}
 	// Write to the file
 	for _, d := range blacklist {
-		if _, err := fmt.Fprint(w, "server=/"); err != nil {
-			return err
-		}
-		if _, err := fmt.Fprintf(w, "%s/", d); err != nil {
-			return err
-		}
-		if _, err := fmt.Fprintf(w, "%s#%s\n", h, p); err != nil {
+		if _, err := fmt.Fprintf(w, "server=/%s/%s#%s\n", d, h, p); err != nil {
 			return err
 		}
 	}
