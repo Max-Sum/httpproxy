@@ -63,6 +63,9 @@ type Client struct {
 	// 最大空闲连接数
 	MaxIdleConnections int `json:"maxconn"`
 
+	// 启动钩子
+	AfterStart string `json:"afterstart"`
+
 	// 日志信息，1输出Debug信息，0输出普通监控信息
 	LogLevel int `json:"loglevel"`
 }

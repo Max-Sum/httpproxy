@@ -17,5 +17,6 @@
     "insecure": false,
     "idletime": 20,
     "maxconn" : 15,
+    "afterstart":"./afterstart.sh",
     "loglevel": 5
 }

@@ -2,7 +2,9 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"os/signal"
+	"strings"
 	"syscall"
 	"flag"
 	"log"
@@ -67,6 +69,20 @@ func main() {
 	log.Println("begin proxy client")
 	// Initialize client
 	client.Initialize(cnfg)
+	// Run after start hook
+	if cnfg.AfterStart != "" {
+		args := strings.SplitN(cnfg.AfterStart, " ", 2)
+		if len(args) == 1 {
+			args = append(args, "")
+		}
+		cmd := exec.Command(args[0], args[1])
+		go func() {
+			err := cmd.Run()
+			if err != nil {
+				log.Printf("AfterStart hook error: %v", err)
+			}
+		}()
+	}
 
 	<-allClosed
 }

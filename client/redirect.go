@@ -3,9 +3,9 @@
 package client
 
 import (
+	"errors"
 	"fmt"
 	"net"
-	"errors"
 	"syscall"
 
 	"github.com/coreos/go-iptables/iptables"
@@ -23,7 +23,7 @@ type EntryRedirectServer struct {
 func NewEntryRedirectServer(addr string, client *HTTPProxyClient) *EntryRedirectServer {
 	return &EntryRedirectServer{
 		Addr: addr,
-		Tr: client,
+		Tr:   client,
 	}
 }
 
@@ -111,8 +111,8 @@ func (s *EntryRedirectServer) getRemoteAddr(c *net.TCPConn) (*net.TCPAddr, error
 	// TCPv4
 	ip := net.IPv4(mreq.Multiaddr[4], mreq.Multiaddr[5], mreq.Multiaddr[6], mreq.Multiaddr[7])
 	port := uint16(mreq.Multiaddr[2])<<8 + uint16(mreq.Multiaddr[3])
-	
-	return &net.TCPAddr{IP:ip, Port:int(port)}, nil
+
+	return &net.TCPAddr{IP: ip, Port: int(port)}, nil
 }
 
 // Deploy the iptables rules to

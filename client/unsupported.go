@@ -4,7 +4,7 @@ package client
 
 import (
 	"fmt"
-    "net"
+	"net"
 )
 
 // EntrypTproxyServer is a null struct on non-Linux system
@@ -15,9 +15,10 @@ type EntryTproxyServer struct {
 
 // EntrypTproxyServer is a null struct on non-Linux system
 type EntryRedirectServer struct {
-	Addr  string
-	Tr    *HTTPProxyClient
+	Addr string
+	Tr   *HTTPProxyClient
 }
+
 func NewEntryTProxyServer(addr string, client *HTTPProxyClient) *EntryTproxyServer {
 	return &EntryTproxyServer{}
 }
@@ -47,5 +48,13 @@ func (s *EntryRedirectServer) Serve(l net.Listener) error {
 }
 
 func (s *EntryRedirectServer) Shutdown() error {
+	return nil
+}
+
+func (s *EntryRedirectServer) Deploy(blacklist, whitelist []string) error {
+	return nil
+}
+
+func (s *EntryRedirectServer) Undeploy() error {
 	return nil
 }
