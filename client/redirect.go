@@ -7,6 +7,8 @@ import (
 	"net"
 	"errors"
 	"syscall"
+
+	"github.com/coreos/go-iptables/iptables"
 )
 
 // EntryRedirectServer is an entrypoint for Linux firewall redirection.
@@ -59,6 +61,7 @@ func (s *EntryRedirectServer) Serve(l net.Listener) error {
 
 // Shutdown the server gracefully
 func (s *EntryRedirectServer) Shutdown() error {
+	s.Undeploy()
 	err := s.ln.Close()
 	if err != nil {
 		return err
@@ -110,4 +113,74 @@ func (s *EntryRedirectServer) getRemoteAddr(c *net.TCPConn) (*net.TCPAddr, error
 	port := uint16(mreq.Multiaddr[2])<<8 + uint16(mreq.Multiaddr[3])
 	
 	return &net.TCPAddr{IP:ip, Port:int(port)}, nil
+}
+
+// Deploy the iptables rules to
+// redirect connections to redirect server
+func (s *EntryRedirectServer) Deploy(blacklist, whitelist []string) error {
+	CHAIN := "HTTPPROXY-REDIR"
+	_, p, err := net.SplitHostPort(s.Addr)
+	if err != nil {
+		return err
+	}
+	ipt, err := iptables.New()
+	if err != nil {
+		return err
+	}
+	// Check if any left chains
+	chains, err := ipt.ListChains("nat")
+	if err != nil {
+		return err
+	}
+	for _, c := range chains {
+		if c == CHAIN {
+			s.Undeploy()
+		}
+	}
+	if err = ipt.NewChain("nat", CHAIN); err != nil {
+		return err
+	}
+	// whitelist ips will returns
+	for _, rule := range whitelist {
+		if err = ipt.AppendUnique("nat", CHAIN, "-d", rule, "-j", "RETURN"); err != nil {
+			return err
+		}
+	}
+	// blacklist ips will be redirected
+	for _, rule := range blacklist {
+		if err = ipt.AppendUnique("nat", CHAIN, "-p", "tcp", "-d", rule, "-j", "REDIRECT", "--to-ports", p); err != nil {
+			return err
+		}
+	}
+	// append chain into prerouting and output
+	if err = ipt.AppendUnique("nat", "PREROUTING", "-p", "tcp", "-j", CHAIN); err != nil {
+		return err
+	}
+	if err = ipt.AppendUnique("nat", "OUTPUT", "-p", "tcp", "-j", CHAIN); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Undeploy removes the iptables rules set using Deploy
+// It tolerates errors
+func (s *EntryRedirectServer) Undeploy() error {
+	CHAIN := "HTTPPROXY-REDIR"
+	ipt, err := iptables.New()
+	if err != nil {
+		return err
+	}
+	if err = ipt.ClearChain("nat", CHAIN); err != nil {
+		log.Error(err)
+	}
+	if err = ipt.Delete("nat", "PREROUTING", "-p", "tcp", "-j", CHAIN); err != nil {
+		log.Error(err)
+	}
+	if err = ipt.Delete("nat", "OUTPUT", "-p", "tcp", "-j", CHAIN); err != nil {
+		log.Error(err)
+	}
+	if err = ipt.DeleteChain("nat", CHAIN); err != nil {
+		log.Error(err)
+	}
+	return err
 }

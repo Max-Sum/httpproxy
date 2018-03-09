@@ -3,8 +3,8 @@ package client
 import (
 	"fmt"
 	"hash/fnv"
-	"net"
 	"io"
+	"net"
 	"time"
 
 	"github.com/miekg/dns"
@@ -110,7 +110,7 @@ func (s *BogusDNS) fromIP(ip net.IP) (uint16, error) {
 		return 0, fmt.Errorf("BogusDNS: Not a valid IP address")
 	}
 	// Compare the prefix part
-	for i := len(ip) - 2; i >= 0; i-- {
+	for i := len(ip) - 3; i >= 0; i-- {
 		if ip[i] != s.IPPrefix[i] {
 			return 0, fmt.Errorf("BogusDNS: Not a valid IP address")
 		}
@@ -207,16 +207,16 @@ func (s *BogusDNS) WriteDNSMasqConfig(w io.Writer, blacklist []string) error {
 		h = "127.0.0.1"
 	}
 	// Write to the file
-	if _, err := fmt.Fprint(w, "server=/"); err != nil {
-		return err
-	}
 	for _, d := range blacklist {
+		if _, err := fmt.Fprint(w, "server=/"); err != nil {
+			return err
+		}
 		if _, err := fmt.Fprintf(w, "%s/", d); err != nil {
 			return err
 		}
-	}
-	if _, err := fmt.Fprintf(w, "%s#%s\n", h, p); err != nil {
-		return err
+		if _, err := fmt.Fprintf(w, "%s#%s\n", h, p); err != nil {
+			return err
+		}
 	}
 	return nil
 }

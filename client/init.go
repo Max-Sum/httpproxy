@@ -77,14 +77,14 @@ func Initialize(c config.Client) {
 		go entproxy.ListenAndServe()
 	}
 	// Update gfwlist
-	if cnfg.GFWListURL != "" {
+	if cnfg.GFWListURL != "" && bogusdns != nil {
 		gfwlist = NewGFWList()
 		err := gfwlist.Update(cnfg.GFWListURL, client)
 		if err != nil {
 			log.Fatal(err)
 		}
 		if cnfg.DNSMasqCfg != "" {
-			file, err := os.OpenFile(cnfg.DNSMasqCfg, os.O_RDWR|os.O_CREATE, 0644) // For read access.
+			file, err := os.OpenFile(cnfg.DNSMasqCfg, os.O_RDWR|os.O_CREATE, 0644)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -92,6 +92,26 @@ func Initialize(c config.Client) {
 			if err := bogusdns.WriteDNSMasqConfig(file, blacklist); err != nil {
 				log.Error(err)
 			}
+		}
+	}
+	// Try to deploy
+	if enredir != nil && bogusdns != nil {
+		// Set the black and white list
+		blacklist := []string{cnfg.DNSPrefix+"/16"}
+		whitelist := make([]string, 0, 1)
+		u, err := url.Parse(cnfg.Proxy)
+		if err != nil {
+			log.Error(err)
+		} else {
+			addr, err := net.ResolveTCPAddr("tcp", u.Host)
+			if err != nil {
+				log.Error(err)
+			} else {
+				whitelist = append(whitelist, addr.IP.String())
+			}
+		}
+		if err := enredir.Deploy(blacklist, whitelist); err != nil {
+			log.Error(err)
 		}
 	}
 }
