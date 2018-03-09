@@ -42,6 +42,7 @@ func (l *GFWList) Update(url string, tr http.RoundTripper) error {
 // Extract rules from the input reader
 func (l *GFWList) Extract(r io.Reader, clear bool) error {
 	if clear && len(l.Blacklist)+len(l.Whitelist) > 0 {
+		log.Debugf("GFWList: clear the list, with %d and %d items in the lists", len(l.Blacklist), len(l.Whitelist))
 		l = NewGFWList()
 	}
 	decoder := base64.NewDecoder(base64.StdEncoding, r)
@@ -51,7 +52,7 @@ func (l *GFWList) Extract(r io.Reader, clear bool) error {
 		// Strip-off comments
 		s = strings.SplitN(s, "!", 2)[0]
 		// Empty line
-		if s == "" {
+		if s == "" || strings.HasPrefix(s, "[") {
 			continue
 		}
 		if strings.HasPrefix(s, "@@") {
@@ -72,12 +73,14 @@ func (l *GFWList) Match(u *url.URL) bool {
 	// Not matching whitelist
 	for _, rule := range l.Whitelist {
 		if l.matchRule(&ou, rule) {
+			log.Debugf("GFWList: Matched %s with rule %s in whitelist", ou.String(), rule)
 			return false
 		}
 	}
 	// matching blacklist
 	for _, rule := range l.Blacklist {
 		if l.matchRule(&ou, rule) {
+			log.Debugf("GFWList: Matched %s with rule %s in blacklist", ou.String(), rule)
 			return true
 		}
 	}
@@ -91,6 +94,7 @@ func (l *GFWList) MatchAddr(host, port string) bool {
 	// Not matching whitelist
 	for _, rule := range l.Whitelist {
 		if l.matchRuleAddr(host, port, rule, false) {
+			log.Debugf("GFWList: Matched %s:%s with rule %s in whitelist", host, port, rule)
 			return false
 		}
 	}
@@ -98,6 +102,7 @@ func (l *GFWList) MatchAddr(host, port string) bool {
 	// blacklist will be fuzzy to match
 	for _, rule := range l.Blacklist {
 		if l.matchRuleAddr(host, port, rule, true) {
+			log.Debugf("GFWList: Matched %s:%s with rule %s in blacklist", host, port, rule)
 			return true
 		}
 	}
@@ -136,7 +141,7 @@ func (l *GFWList) matchRuleAddr(host, port, rule string, fuzzy bool) bool {
 	var url string
 	if port == "443" || port == "https" {
 		url = "https://" + host + "/"
-	} else  {
+	} else {
 		url = "http://" + host + "/"
 	}
 	// URL prefix
@@ -148,7 +153,7 @@ func (l *GFWList) matchRuleAddr(host, port, rule string, fuzzy bool) bool {
 				idx = -3
 			}
 			search := strings.Index(rule[idx+3:], "/")
-			if search >= 0{
+			if search >= 0 {
 				rule = rule[:idx+3+search]
 			}
 		}
@@ -170,7 +175,7 @@ func (l *GFWList) matchRuleAddr(host, port, rule string, fuzzy bool) bool {
 			idx = -3
 		}
 		search := strings.Index(rule[idx+3:], "/")
-		if search >= 0{
+		if search >= 0 {
 			rule = rule[:idx+3+search]
 		}
 	}
@@ -197,4 +202,71 @@ func (l *GFWList) glob(s, pattern string) bool {
 		s = s[idx+len(parts[i]):]
 	}
 	return strings.HasSuffix(s, parts[len(parts)-1])
+}
+
+// ExportDomains exports two black and white list of domains
+// with best effort (GFWList is not designed to do this)
+func (l *GFWList) ExportDomains() ([]string, []string) {
+	// Domain regexp
+	domainRegexp := regexp.MustCompile("^(\\.?([^\\/:@\\*\\.]+\\.)+[^\\/:@\\*\\.]+)/?$")
+	fuzzyDomainRegexp := regexp.MustCompile("([^\\/:@\\*\\.]+\\.)+[^\\/:@\\*\\.]+")
+	whitelist := make([]string, 0, len(l.Whitelist))
+	blacklist := make([]string, 0, len(l.Blacklist))
+	// Deduplicate some domains
+	tmp := ""
+	for _, rule := range l.Whitelist {
+		if strings.HasPrefix(rule, "||") {
+			rule = rule[2:]
+			// No way to use a rule with an asterisk
+			if !strings.ContainsRune(rule, '*') && tmp != rule {
+				whitelist = append(whitelist, rule)
+				tmp = rule
+			}
+			continue
+		}
+		// regexp
+		if strings.HasPrefix(rule, "/") && strings.HasSuffix(rule, "/") {
+			// No way to use it now
+			continue
+		}
+		// URL Prefix
+		if strings.HasPrefix(rule, "|") {
+			rule = rule[1:]
+		}
+		// keyword
+		matches := domainRegexp.FindStringSubmatch(rule)
+		if len(matches) > 1 && tmp != matches[1] {
+			whitelist = append(whitelist, matches[1])
+			tmp = matches[1]
+		}
+		continue
+	}
+	tmp = ""
+	for _, rule := range l.Blacklist {
+		if strings.HasPrefix(rule, "||") {
+			rule = rule[2:]
+			// No way to use a rule with an asterisk
+			if !strings.ContainsRune(rule, '*') && tmp != rule {
+				blacklist = append(blacklist, rule)
+				tmp = rule
+			}
+			continue
+		}
+		// regexp
+		if strings.HasPrefix(rule, "/") && strings.HasSuffix(rule, "/") {
+			// No way to use it now
+			continue
+		}
+		// URL Prefix
+		if strings.HasPrefix(rule, "|") {
+			rule = rule[1:]
+		}
+		// keyword
+		rule = fuzzyDomainRegexp.FindString(rule)
+		if rule != "" && rule != tmp {
+			blacklist = append(blacklist, rule)
+			tmp = rule
+		}
+	}
+	return blacklist, whitelist
 }

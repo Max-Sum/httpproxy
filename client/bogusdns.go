@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"net"
+	"io"
 	"time"
 
 	"github.com/miekg/dns"
@@ -189,4 +190,33 @@ func (s *BogusDNS) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		}
 	}
 	w.WriteMsg(&msg)
+}
+
+// WriteDNSMasqConfig gives a dnsmasq config that will
+// make dnsmasq to request Bogus DNS Server in case of
+// gfwlist matches.
+// It needs GFWList to be established.
+func (s *BogusDNS) WriteDNSMasqConfig(w io.Writer, blacklist []string) error {
+	// Get the running address
+	addr := s.srv.Addr
+	h, p, err := net.SplitHostPort(addr)
+	if err != nil {
+		return err
+	}
+	if h == "" {
+		h = "127.0.0.1"
+	}
+	// Write to the file
+	if _, err := fmt.Fprint(w, "server=/"); err != nil {
+		return err
+	}
+	for _, d := range blacklist {
+		if _, err := fmt.Fprintf(w, "%s/", d); err != nil {
+			return err
+		}
+	}
+	if _, err := fmt.Fprintf(w, "%s#%s\n", h, p); err != nil {
+		return err
+	}
+	return nil
 }

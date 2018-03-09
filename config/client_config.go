@@ -48,6 +48,12 @@ type Client struct {
 	// Bogus DNS TTL
 	DNSTTL uint `json:"dnsttl"`
 
+	// DNSMasq 配置文件(添加 Bogus DNS 配置)
+	DNSMasqCfg string `json:"dnsmasqcfg"`
+
+	// gfwlist URL
+	GFWListURL string `json:"gfwlist"`
+
 	// 忽略 TLS 证书检查
 	InsecureSkipVerify bool `json:"insecure"`
 

@@ -6,6 +6,7 @@ import (
 	"httpproxy/config"
 	"net"
 	"net/url"
+	"os"
 	"runtime"
 	"time"
 
@@ -16,6 +17,7 @@ var (
 	cnfg     config.Client
 	client   *HTTPProxyClient
 	bogusdns *BogusDNS
+	gfwlist  *GFWList
 	enhttp   *EntryHTTPServer
 	ensocks  *EntrySocksServer
 	entproxy *EntryTproxyServer
@@ -53,7 +55,7 @@ func Initialize(c config.Client) {
 			tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
 			tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
 		},
-		ServerName:          cnfg.Hostname,
+		ServerName: cnfg.Hostname,
 	}
 	client = NewHTTPProxyClient(proxyURL, tlsConfig, bogusdns)
 	client.SetBasicAuth(cnfg.Username, cnfg.Password)
@@ -73,6 +75,27 @@ func Initialize(c config.Client) {
 	if cnfg.TProxyListen != "" && runtime.GOOS == "linux" {
 		entproxy = NewEntryTProxyServer(cnfg.TProxyListen, client)
 		go entproxy.ListenAndServe()
+	}
+	// Update gfwlist
+	if cnfg.GFWListURL != "" {
+		gfwlist = NewGFWList()
+		err := gfwlist.Update(cnfg.GFWListURL, client)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if cnfg.DNSMasqCfg != "" {
+			file, err := os.OpenFile(cnfg.DNSMasqCfg, os.O_RDWR|os.O_CREATE, 0644) // For read access.
+			if err != nil {
+				log.Fatal(err)
+			}
+			blacklist, _ := gfwlist.ExportDomains()
+			if err := bogusdns.WriteDNSMasqConfig(file, blacklist); err != nil {
+				log.Error(err)
+			}
+		}
+		log.Debug(gfwlist.MatchAddr("google.com","443"))
+		log.Debug(gfwlist.MatchAddr("www.ziddu.com","80"))
+		log.Debug(gfwlist.MatchAddr("nrch.culture.tw","80"))
 	}
 }
 
