@@ -93,9 +93,6 @@ func Initialize(c config.Client) {
 				log.Error(err)
 			}
 		}
-		log.Debug(gfwlist.MatchAddr("google.com","443"))
-		log.Debug(gfwlist.MatchAddr("www.ziddu.com","80"))
-		log.Debug(gfwlist.MatchAddr("nrch.culture.tw","80"))
 	}
 }
 
