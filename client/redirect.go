@@ -68,55 +68,46 @@ func (s *EntryRedirectServer) Shutdown() error {
 
 func (s *EntryRedirectServer) handleTCPConn(conn *net.TCPConn) {
 	clientAddr := conn.RemoteAddr().String()
-	conn, remoteAddr, err := s.getRemoteAddr(conn)
-	log.Infof("Redir: Real remote addr %s", remoteAddr)
+	remoteAddr, err := s.getRemoteAddr(conn)
 	if err != nil {
 		log.Error("Redir: Failed to get remote address", err)
 	}
-	log.Debugf("Accepting TCP connection from %s with destination of %s", clientAddr, remoteAddr)
-	err = s.Tr.Redirect(conn, remoteAddr)
+	addr := net.JoinHostPort(remoteAddr.IP.String(), fmt.Sprint(remoteAddr.Port))
+	log.Infof("Redir: Real remote addr %s", addr)
+	log.Debugf("Accepting TCP connection from %s with destination of %s", clientAddr, addr)
+	err = s.Tr.Redirect(conn, addr)
 	if err != nil {
-		log.Errorf("Failed to connect to original destination [%s]: %s", remoteAddr, err)
+		log.Errorf("Failed to connect to original destination [%s]: %s", addr, err)
 		conn.Close()
 	}
 }
 
-func (s *EntryRedirectServer) getRemoteAddr(c *net.TCPConn) (*net.TCPConn, string, error) {
+func (s *EntryRedirectServer) getRemoteAddr(c *net.TCPConn) (*net.TCPAddr, error) {
 	// test if the underlying fd is nil
 	remoteAddr := c.RemoteAddr()
 	if remoteAddr == nil {
-		return c, "", errors.New("getRemoteAddr: Underlying FileDescriptor is nil")
+		return nil, errors.New("getRemoteAddr: Underlying FileDescriptor is nil")
 	}
-	// net.TCPConn.File() will cause the receiver's (clientConn) socket to be placed in blocking mode.
-	// The workaround is to take the File returned by .File(), do getsockopt() to get the original
-	// destination, then create a new *net.TCPConn by calling net.Conn.FileConn().  The new TCPConn
-	// will be in non-blocking mode. What a pain.
 	fc, err := c.File()
 	if err != nil {
-		return c, "", err
+		return nil, err
 	}
 	defer fc.Close()
-	// Recreate TCPConn
-	cc, err := net.FileConn(fc)
-	if err != nil {
-		return nil, "", err
+	fd := fc.Fd()
+	// The File() call above puts both the original socket c and the file fd in blocking mode.
+	// Set the file fd back to non-blocking mode and the original socket c will become non-blocking as well.
+	// Otherwise blocking I/O will waste OS threads.
+	if err := syscall.SetNonblock(int(fd), true); err != nil {
+		return nil, err
 	}
-	conn, ok := cc.(*net.TCPConn)
-	if !ok {
-		err = errors.New("getRemoteAddr: not a TCP connection")
-		return nil, "", err
-	}
-	c.Close()
 	// Get Actual Address
-	mreq, err := syscall.GetsockoptIPv6Mreq(int(fc.Fd()), syscall.IPPROTO_IP, 80)
+	mreq, err := syscall.GetsockoptIPv6Mreq(int(fd), syscall.IPPROTO_IP, 80)
 	if err != nil {
-		return conn, "", err
+		return nil, err
 	}
-	var addr string
 	// TCPv4
 	ip := net.IPv4(mreq.Multiaddr[4], mreq.Multiaddr[5], mreq.Multiaddr[6], mreq.Multiaddr[7])
 	port := uint16(mreq.Multiaddr[2])<<8 + uint16(mreq.Multiaddr[3])
-	addr = net.JoinHostPort(ip.String(), fmt.Sprint(port))
 	
-	return conn, addr, nil
+	return &net.TCPAddr{IP:ip, Port:int(port)}, nil
 }
