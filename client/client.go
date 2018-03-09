@@ -239,47 +239,80 @@ func (b *body) Close() (err error) {
 
 // RoundTrip request normal http request
 func (p *HTTPProxyClient) RoundTrip(req *http.Request) (*http.Response, error) {
-	// Get connection from pool
-	c, err := p.getConn()
-	if err != nil {
-		err := fmt.Errorf("HTTP Proxy: Cannot get connection from pool: %s", err.Error())
-		log.Error(err)
-		return nil, err
-	}
-	// Probe the address
-	host := p.probeAddress(req.URL.Hostname())
-	port := req.URL.Port()
-	if port != "" {
-		host = net.JoinHostPort(host, port)
-	}
-	req.URL.Host = host
-	req.Host = host
-	// Add Password
-	req.Header.Set("Proxy-Authorization", p.ConnectHeader.Get("Proxy-Authorization"))
+	if req.URL.Scheme == "http" {
+		// Get connection from pool
+		c, err := p.getConn()
+		if err != nil {
+			err := fmt.Errorf("HTTP Proxy: Cannot get connection from pool: %s", err.Error())
+			log.Error(err)
+			return nil, err
+		}
+		// Probe the address
+		host := p.probeAddress(req.URL.Hostname())
+		port := req.URL.Port()
+		if port != "" {
+			host = net.JoinHostPort(host, port)
+		}
+		req.URL.Host = host
+		req.Host = host
+		// Add Password
+		req.Header.Set("Proxy-Authorization", p.ConnectHeader.Get("Proxy-Authorization"))
 
-	// Send Request to the Connection
-	log.Debugf("HTTP Proxy: sending a request to %v", req.URL)
-	err = req.WriteProxy(c)
-	if err != nil {
-		return nil, err
+		// Send Request to the Connection
+		log.Debugf("HTTP Proxy: sending a request to %v", req.URL)
+		err = req.WriteProxy(c)
+		if err != nil {
+			return nil, err
+		}
+		// Read reasponse
+		reader := bufio.NewReader(c)
+		resp, err := http.ReadResponse(reader, req)
+		if err != nil {
+			err := fmt.Errorf("HTTP Proxy: Failed to read response: %s", err.Error())
+			log.Error(err)
+			return nil, err
+		}
+		// New body
+		b := &body{
+			src: resp.Body,
+			afterClose: func() error {
+				log.Info("body hook: put back connection")
+				p.Pool.Put(c)
+				return nil
+			},
+		}
+		resp.Body = b
+		return resp, nil
+	} else if req.URL.Scheme == "https" {
+		if req.URL.Port() == "" {
+			req.URL.Host += ":443"
+		}
+		c, err := p.Dial(req.URL.Host)
+		if err != nil {
+			return nil, err
+		}
+		// tls
+		tlsConn := tls.Client(c, &tls.Config{
+			CipherSuites:       p.TLSConfig.CipherSuites,
+			ServerName:         req.URL.Hostname(),
+			ClientSessionCache: p.TLSConfig.ClientSessionCache,
+		})
+		// Send Request to the Connection
+		log.Debugf("HTTP Proxy: sending a HTTPS request to %v", req.URL)
+		err = req.Write(tlsConn)
+		if err != nil {
+			return nil, err
+		}
+		// Read reasponse
+		reader := bufio.NewReader(c)
+		resp, err := http.ReadResponse(reader, req)
+		if err != nil {
+			err := fmt.Errorf("HTTP Proxy: Failed to read response: %s", err.Error())
+			log.Error(err)
+			return nil, err
+		}
+		return resp, nil
+	} else {
+		return nil, fmt.Errorf("HTTP Proxy: Unsupported scheme")
 	}
-	// Read reasponse
-	reader := bufio.NewReader(c)
-	resp, err := http.ReadResponse(reader, req)
-	if err != nil {
-		err := fmt.Errorf("HTTP Proxy: Failed to read response: %s", err.Error())
-		log.Error(err)
-		return nil, err
-	}
-	// New body
-	b := &body{
-		src: resp.Body,
-		afterClose: func() error {
-			log.Info("body hook: put back connection")
-			p.Pool.Put(c)
-			return nil
-		},
-	}
-	resp.Body = b
-	return resp, nil
 }

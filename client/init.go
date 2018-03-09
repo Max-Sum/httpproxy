@@ -23,21 +23,6 @@ var (
 )
 
 var log = logging.MustGetLogger("HTTP Proxy")
-var tlsConfig = &tls.Config{
-	MinVersion:         tls.VersionTLS12,
-	InsecureSkipVerify: false,
-	ClientSessionCache: tls.NewLRUClientSessionCache(128),
-	CipherSuites: []uint16{
-		tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
-		tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
-		tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-		tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-		tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-		tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-		tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
-		tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
-	},
-}
 
 // Initialize the client
 func Initialize(c config.Client) {
@@ -54,8 +39,22 @@ func Initialize(c config.Client) {
 	if err != nil {
 		log.Fatal("Failed to parse proxy URL", err)
 	}
-	tlsConfig.InsecureSkipVerify = cnfg.InsecureSkipVerify
-	tlsConfig.ServerName = cnfg.Hostname
+	tlsConfig := &tls.Config{
+		MinVersion:         tls.VersionTLS12,
+		InsecureSkipVerify: cnfg.InsecureSkipVerify,
+		ClientSessionCache: tls.NewLRUClientSessionCache(128),
+		CipherSuites: []uint16{
+			tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
+		},
+		ServerName:          cnfg.Hostname,
+	}
 	client = NewHTTPProxyClient(proxyURL, tlsConfig, bogusdns)
 	client.SetBasicAuth(cnfg.Username, cnfg.Password)
 	// Initialize Entrypoints
