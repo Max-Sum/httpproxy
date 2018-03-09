@@ -19,7 +19,8 @@ import (
 // Handler is the main structure
 type Handler struct {
 	// User records user's name
-	Tr   *http.Transport
+	Tr   http.Transport
+	d    net.Dialer
 	User string
 }
 
@@ -30,7 +31,14 @@ func NewProxyServer() *http.Server {
 	}
 
 	return &http.Server{
-		Handler:        &Handler{Tr: &http.Transport{Proxy: http.ProxyFromEnvironment}},
+		Handler:        &Handler{
+			Tr: http.Transport{Proxy: http.ProxyFromEnvironment},
+			d:  net.Dialer{
+				DualStack: true,
+				Timeout:   10 * time.Second,
+				KeepAlive: 5 * time.Minute,
+			},
+		},
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,
@@ -116,7 +124,7 @@ func (proxy *Handler) HttpsHandler(rw http.ResponseWriter, req *http.Request, bo
 		// 提前发送200，减少RTT时间
 		client.Write(HTTP_200)
 	}
-	remote, err := net.Dial("tcp", req.URL.Host) //建立服务端和代理服务器的tcp连接
+	remote, err := proxy.d.Dial("tcp", req.URL.Host) //建立服务端和代理服务器的tcp连接
 	if err != nil {
 		log.Errorf("%s failed to connect %s", proxy.User, req.RequestURI)
 		// If 200 is not sent, we can report the error to client.
