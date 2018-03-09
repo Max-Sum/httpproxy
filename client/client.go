@@ -128,6 +128,9 @@ func (p *HTTPProxyClient) probeAddress(host string) string {
 		return host
 	}
 	ip := net.ParseIP(host)
+	if ip == nil {
+		return host
+	}
 	orig, err := p.bogusDNS.GetAddress(ip)
 	if err != nil {
 		log.Debug(err)
@@ -304,13 +307,23 @@ func (p *HTTPProxyClient) RoundTrip(req *http.Request) (*http.Response, error) {
 			return nil, err
 		}
 		// Read reasponse
-		reader := bufio.NewReader(c)
+		reader := bufio.NewReader(tlsConn)
 		resp, err := http.ReadResponse(reader, req)
 		if err != nil {
 			err := fmt.Errorf("HTTP Proxy: Failed to read response: %s", err.Error())
 			log.Error(err)
 			return nil, err
 		}
+		// New body
+		b := &body{
+			src: resp.Body,
+			afterClose: func() error {
+				log.Info("body hook: close connection")
+				tlsConn.Close()
+				return nil
+			},
+		}
+		resp.Body = b
 		return resp, nil
 	} else {
 		return nil, fmt.Errorf("HTTP Proxy: Unsupported scheme")
