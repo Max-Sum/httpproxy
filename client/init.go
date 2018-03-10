@@ -97,7 +97,7 @@ func Initialize(c config.Client) {
 	// Try to deploy
 	if enredir != nil && bogusdns != nil {
 		// Set the black and white list
-		blacklist := []string{cnfg.DNSPrefix+"/16"}
+		blacklist := []string{cnfg.DNSPrefix + "/16"}
 		whitelist := make([]string, 0, 1)
 		u, err := url.Parse(cnfg.Proxy)
 		if err != nil {
@@ -206,7 +206,7 @@ func setLog() {
 	}
 
 	var format logging.Formatter
-	format = logging.MustStringFormatter("%{color}%{shortfunc:10s}	▶ %{level:.4s} %{color:reset} %{message}")
+	format = logging.MustStringFormatter("%{color}%{shortfunc:.12s}	▶ %{level:.4s} %{color:reset} %{message}")
 	logging.SetFormatter(format)
 	logging.SetLevel(level, "HTTP Proxy")
 }

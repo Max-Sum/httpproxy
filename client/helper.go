@@ -68,7 +68,7 @@ func CopyIO(dst, src net.Conn, terminate chan bool) {
 	}()
 	bytes, err := io.Copy(dst, src)
 	if err != nil && err != io.EOF {
-		log.Errorf("Got an error when copying %v", err)
+		log.Warningf("Got an error when copying %v", err)
 		return
 	}
 	log.Infof("CopyIO: copied %d bytes %s to %s", bytes, src.RemoteAddr(), dst.RemoteAddr())

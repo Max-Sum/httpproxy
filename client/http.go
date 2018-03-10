@@ -100,7 +100,7 @@ func (proxy *entryHTTPHandler) HTTPSHandler(rw http.ResponseWriter, req *http.Re
 		log.Errorf("HTTP Entry: Failed to connect to %s", req.RequestURI)
 		log.Error(err)
 		// TODO write error msg.
-		client.Close()
+		client.Close()	
 		return
 	}
 }
