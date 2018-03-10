@@ -31,7 +31,7 @@ func Initialize(c config.Client) {
 	cnfg = c
 	setLog()
 	// Initialize Bogus DNS Server
-	if cnfg.DNSListen != "" {
+	if cnfg.DNSListen != "" && runtime.GOOS == "linux" {
 		prefix := net.ParseIP(cnfg.DNSPrefix)
 		bogusdns = NewBogusDNS(cnfg.DNSListen, prefix, time.Duration(cnfg.DNSTTL)*time.Second)
 		go bogusdns.ListenAndServe()
@@ -77,21 +77,21 @@ func Initialize(c config.Client) {
 		go entproxy.ListenAndServe()
 	}
 	// Update gfwlist
-	if cnfg.GFWListURL != "" && bogusdns != nil {
+	if cnfg.GFWListURL != "" {
 		gfwlist = NewGFWList()
 		err := gfwlist.Update(cnfg.GFWListURL, client)
 		if err != nil {
+			log.Error(err)
+		}
+	}
+	if bogusdns != nil && cnfg.DNSMasqCfg != "" {
+		file, err := os.OpenFile(cnfg.DNSMasqCfg, os.O_WRONLY|os.O_CREATE, 0644)
+		if err != nil {
 			log.Fatal(err)
 		}
-		if cnfg.DNSMasqCfg != "" {
-			file, err := os.OpenFile(cnfg.DNSMasqCfg, os.O_WRONLY|os.O_CREATE, 0644)
-			if err != nil {
-				log.Fatal(err)
-			}
-			blacklist, _ := gfwlist.ExportDomains()
-			if err := bogusdns.WriteDNSMasqConfig(file, blacklist); err != nil {
-				log.Error(err)
-			}
+		blacklist, _ := gfwlist.ExportDomains()
+		if err := bogusdns.WriteDNSMasqConfig(file, blacklist); err != nil {
+			log.Error(err)
 		}
 	}
 	// Try to deploy
@@ -206,7 +206,7 @@ func setLog() {
 	}
 
 	var format logging.Formatter
-	format = logging.MustStringFormatter("%{color}%{shortfunc}	▶ %{level:.4s} %{color:reset} %{message}")
+	format = logging.MustStringFormatter("%{color}%{shortfunc:10s}	▶ %{level:.4s} %{color:reset} %{message}")
 	logging.SetFormatter(format)
 	logging.SetLevel(level, "HTTP Proxy")
 }
