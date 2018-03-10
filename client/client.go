@@ -203,9 +203,8 @@ func (p *HTTPProxyClient) Redirect(srcConn net.Conn, targetAddr string) error {
 	}
 	// Copy Request IO before read 200 OK.
 	// So that the proxy server could start transmission faster.
-	term := make(chan bool, 1)
-	term <- false
-	go CopyIO(conn, srcConn, term)
+	ch := make(chan bool, 1)
+	go CopyIO(conn, srcConn, ch)
 	resp, err := http.ReadResponse(bufio.NewReader(conn), &http.Request{Method: http.MethodConnect})
 	if err != nil {
 		p.Pool.Put(conn)
@@ -217,7 +216,7 @@ func (p *HTTPProxyClient) Redirect(srcConn net.Conn, targetAddr string) error {
 		return fmt.Errorf(f[1])
 	}
 	// Start to copy other
-	go CopyIO(srcConn, conn, term)
+	go CopyIO(srcConn, conn, ch)
 	// Send Signal to the first go routine.
 	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/url"
 	"net/http"
+	"time"
 )
 
 var portMap = map[string]string{
@@ -37,12 +38,9 @@ func CopyIO(dst, src net.Conn, terminate chan bool) {
 	defer func() {
 		// The first goroutine will only try to half close
 		// The second goroutine close both forcefully.
-		if <- terminate {
-			log.Debugf("CopyIO: Close %s <-> %s", dst.RemoteAddr(), src.RemoteAddr())
-			dst.Close()
-			src.Close()
-			close(terminate)
-		} else {
+		select {
+		// lock
+		case terminate <- true:
 			log.Debugf("CopyIO: HalfClose %s <-> %s", dst.RemoteAddr(), src.RemoteAddr())
 			if cw, ok := dst.(closeWrite); ok {
 				cw.CloseWrite()
@@ -50,8 +48,22 @@ func CopyIO(dst, src net.Conn, terminate chan bool) {
 			if cr, ok := src.(closeRead); ok {
 				cr.CloseRead()
 			}
-			// Give the next goroutine a signal.
-			terminate <- true
+		default:
+			log.Debugf("CopyIO: Close %s <-> %s", dst.RemoteAddr(), src.RemoteAddr())
+			dst.Close()
+			src.Close()
+			// unlock
+			<- terminate
+			close(terminate)
+			return
+		}
+		// Wait for the second goroutine to close the channel
+		select {
+		case terminate <- true:
+		case <- time.After(5 * time.Second):
+			log.Debugf("CopyIO: Force Close %s <-> %s", dst.RemoteAddr(), src.RemoteAddr())
+			dst.Close()
+			src.Close()
 		}
 	}()
 	bytes, err := io.Copy(dst, src)
