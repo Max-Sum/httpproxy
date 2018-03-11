@@ -159,6 +159,7 @@ func (p *HTTPProxyClient) connect(targetAddr string) (net.Conn, error) {
 	pc, err := p.getConn()
 	if err != nil {
 		log.Errorf("HTTP Proxy: Cannot get connection from pool: %s", err)
+		return nil, err
 	}
 	// Send Request to the Connection
 	err = req.WriteProxy(pc)
