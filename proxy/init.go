@@ -3,8 +3,6 @@ package proxy
 import (
 	"github.com/op/go-logging"
 	"httpproxy/config"
-
-	stdlog "log"
 )
 
 var log = logging.MustGetLogger("proxy")
@@ -29,10 +27,8 @@ func setLog() {
 	logging.SetLevel(level, "proxy")
 }
 
-func init() {
-	err := cnfg.GetConfig("config/config.json")
-	if err != nil {
-		stdlog.Fatal(err)
-	}
+// Initialize the Proxy
+func Initialize(c config.Config) {
+	cnfg = c
 	setLog()
 }
