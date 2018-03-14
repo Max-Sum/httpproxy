@@ -141,9 +141,10 @@ func (ws *WebServer) SettingHandler(rw http.ResponseWriter, req *http.Request) {
 		auth := req.FormValue("auth")
 		cache := req.FormValue("cache")
 		cachetimeout := req.FormValue("cachetimeout")
+		failover := req.FormValue("failover")
 		gfwlist := req.FormValue("gfwlist")
+		logging, _ := strconv.Atoi(req.FormValue("log"))
 		//TODO check those value
-
 		if auth == "true" {
 			cnfg.Auth = true
 		}
@@ -154,9 +155,12 @@ func (ws *WebServer) SettingHandler(rw http.ResponseWriter, req *http.Request) {
 		cnfg.CacheTimeout = int64(ctint)
 		gfwlist = strings.Trim(gfwlist, ";")
 		cnfg.GFWList = strings.Split(gfwlist, ";")
+		cnfg.Failover = failover
+		cnfg.Log = logging
 		err := cnfg.WriteToFile()
-		log.Error(err)
-		log.Debug("herre")
+		if err != nil {
+			log.Error(err)
+		}
 		rw.WriteHeader(http.StatusOK)
 	}
 }
