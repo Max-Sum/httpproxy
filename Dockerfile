@@ -2,8 +2,7 @@ FROM golang:alpine
 MAINTAINER Max Sum <max@lolyculture.com>
 
 # Build app
-RUN mkdir $GOPATH/src/httpproxy
-COPY ["cache", "config", "lib", "proxy", "static", "views", "server.go", "$GOPATH/src/httpproxy"]
+COPY . "$GOPATH/src/httpproxy"
 WORKDIR $GOPATH/src/httpproxy
 VOLUME $GOPATH/src/httpproxy/config
 
