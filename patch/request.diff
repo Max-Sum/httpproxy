@@ -1,0 +1,11 @@
+--- request.go	2017-10-26 02:30:29.000000000 +0800
++++ request_altered.go	2018-03-15 02:17:42.000000000 +0800
+@@ -1292,7 +1292,7 @@
+ }
+ 
+ func (r *Request) wantsClose() bool {
+-	return hasToken(r.Header.get("Connection"), "close")
++	return false
+ }
+ 
+ func (r *Request) closeBody() {
