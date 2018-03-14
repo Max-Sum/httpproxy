@@ -14,4 +14,4 @@ RUN apk add --no-cache git \
 VOLUME /config
 
 EXPOSE 80
-CMD ["server", "-c", "/config/config.json"]
+CMD ["./server", "-c", "/config/config.json"]
