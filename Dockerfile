@@ -5,11 +5,13 @@ MAINTAINER Max Sum <max@lolyculture.com>
 COPY . "$GOPATH/src/httpproxy"
 WORKDIR $GOPATH/src/httpproxy
 
+# Build server
 RUN apk add --no-cache git \
-    && mkdir /config \
-    && mv $GOPATH/src/httpproxy/config/*.json /config \
     && go get -t httpproxy \
-    && go build server.go
+    && apk del git \
+    && go build server.go \
+    && mkdir /config \
+    && mv config/*.json /config \
 
 VOLUME /config
 

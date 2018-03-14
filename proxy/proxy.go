@@ -8,12 +8,12 @@ package proxy
 import (
 	"bytes"
 	"fmt"
+	"httpproxy/cache"
 	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"time"
-	"httpproxy/cache"
 )
 
 // Handler is the main structure
@@ -31,9 +31,9 @@ func NewProxyServer() *http.Server {
 	}
 
 	return &http.Server{
-		Handler:        &Handler{
+		Handler: &Handler{
 			Tr: http.Transport{Proxy: http.ProxyFromEnvironment},
-			d:  net.Dialer{
+			d: net.Dialer{
 				DualStack: true,
 				Timeout:   10 * time.Second,
 				KeepAlive: 5 * time.Minute,
@@ -130,14 +130,14 @@ func (proxy *Handler) HttpsHandler(rw http.ResponseWriter, req *http.Request, bo
 		// If 200 is not sent, we can report the error to client.
 		if !boost200 {
 			resp := &http.Response{
-				StatusCode:      502,
-				ProtoMajor:      req.ProtoMajor,
-				ProtoMinor:      req.ProtoMinor,
-				Header:          make(http.Header),
-				Body:            ioutil.NopCloser(bytes.NewBufferString(err.Error())),
-				ContentLength:   int64(len(err.Error())),
-				Close:           true,
-				Request:         req,
+				StatusCode:    502,
+				ProtoMajor:    req.ProtoMajor,
+				ProtoMinor:    req.ProtoMinor,
+				Header:        make(http.Header),
+				Body:          ioutil.NopCloser(bytes.NewBufferString(err.Error())),
+				ContentLength: int64(len(err.Error())),
+				Close:         true,
+				Request:       req,
 			}
 			if err.(*net.OpError).Timeout() {
 				resp.StatusCode = 504
