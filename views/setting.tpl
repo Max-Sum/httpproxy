@@ -21,6 +21,7 @@
 	<br />
 	<input type="text" pattern="false|true" id="auth" name="auth" value="{{.Auth}}" size="30" />
 	</div>
+	<div id="field">
 	<label for="failover">认证失败代理地址</label><span> Eg: "127.0.0.1:8080"</span>
 	<br />
 	<input type="text" id="failover" name="failover" value="{{.Failover}}" size="30" />
