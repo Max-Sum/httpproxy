@@ -21,8 +21,10 @@ func main() {
 	configPtr := flag.String("c", "config/config.json", "config file")
 	flag.Parse()
 	// Read config file
-	err := cnfg.GetConfig(*configPtr)
-	if err != nil {
+	if err := cnfg.SetPath(*configPtr); err != nil {
+		log.Fatal(err)
+	}
+	if err := cnfg.GetConfig(); err != nil {
 		log.Fatal(err)
 	}
 	proxy.Initialize(cnfg)

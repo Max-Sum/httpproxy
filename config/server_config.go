@@ -44,15 +44,29 @@ type Config struct {
 	Admin map[string]string `json:"admin"`
 	// 普通用户账户
 	User map[string]string `json:"user"`
+	// json 文件地址
+	path string
+}
+
+
+// SetPath sets the path for the config file
+func (c *Config) SetPath(filename string) error {
+	configFile, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer configFile.Close()
+	c.path = filename
+	return nil
 }
 
 // GetConfig gets config from json file.
 // GetConfig 从指定json文件读取config配置
-func (c *Config) GetConfig(filename string) error {
+func (c *Config) GetConfig() error {
 	c.Admin = make(map[string]string)
 	c.User = make(map[string]string)
 
-	configFile, err := os.Open(filename)
+	configFile, err := os.Open(c.path)
 	if err != nil {
 		return err
 	}
@@ -68,8 +82,8 @@ func (c *Config) GetConfig(filename string) error {
 
 // WriteToFile writes config into json file.
 // WriteToFile 将config配置写入特定json文件
-func (c *Config) WriteToFile(filename string) error {
-	configFile, err := os.OpenFile(filename, os.O_WRONLY|os.O_TRUNC, os.ModePerm)
+func (c *Config) WriteToFile() error {
+	configFile, err := os.OpenFile(c.path, os.O_WRONLY|os.O_TRUNC, os.ModePerm)
 	if err != nil {
 		return err
 	}

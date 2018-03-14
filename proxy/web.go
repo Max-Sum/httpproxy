@@ -107,7 +107,7 @@ func (ws *WebServer) UserHandler(rw http.ResponseWriter, req *http.Request) {
 		}
 		cnfg.User[user] = passwd
 	}
-	err := cnfg.WriteToFile("config/config.json")
+	err := cnfg.WriteToFile()
 	if err != nil {
 		log.Error(err)
 	}
@@ -154,7 +154,7 @@ func (ws *WebServer) SettingHandler(rw http.ResponseWriter, req *http.Request) {
 		cnfg.CacheTimeout = int64(ctint)
 		gfwlist = strings.Trim(gfwlist, ";")
 		cnfg.GFWList = strings.Split(gfwlist, ";")
-		err := cnfg.WriteToFile("config/config.json")
+		err := cnfg.WriteToFile()
 		log.Error(err)
 		log.Debug("herre")
 		rw.WriteHeader(http.StatusOK)
