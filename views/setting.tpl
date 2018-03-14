@@ -7,19 +7,23 @@
 	<input type="text" id="listen" name="listen" value="{{.Listen}}" readonly="" size="30"/>
 	</div>
 	<div id="field">
-	<label for="auth">是否开启反向代理</label><span> [true/false]</span>
+	<label for="reverse">是否开启反向代理</label><span> [true/false]</span>
 	<br />
 	<input type="text" pattern="false|true" id="reverse" name="reverse" value="{{.Reverse}}" size="30" />
 	</div>
 	<div id="field">
-	<label for="auth">反向代理目标地址</label><span> eg:"127.0.0.1:8090"</span>
+	<label for="proxy_pass">反向代理目标地址</label><span> eg:"127.0.0.1:8090"</span>
 	<br />
-	<input type="text" id="proxy_pass" name="proxy_pass" value="{{.Proxy_pass}}" size="30" />
+	<input type="text" id="proxy_pass" name="proxy_pass" value="{{.ProxyPass}}" size="30" />
 	</div>
 	<div id="field">
 	<label for="auth">是否开启认证</label><span> [true/false]</span>
 	<br />
 	<input type="text" pattern="false|true" id="auth" name="auth" value="{{.Auth}}" size="30" />
+	</div>
+	<label for="failover">认证失败代理地址</label><span> Eg: "127.0.0.1:8080"</span>
+	<br />
+	<input type="text" id="failover" name="failover" value="{{.Failover}}" size="30" />
 	</div>
 	<div id="field">
 	<label for="cache">是否开启缓存</label><span> [true/false]</span>

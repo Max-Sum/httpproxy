@@ -11,7 +11,7 @@ import (
 	"httpproxy/config"
 )
 
-type WebServer struct {}
+type WebServer struct{}
 
 func NewWebServer() *WebServer {
 	return &WebServer{}
@@ -52,14 +52,14 @@ func (ws *WebServer) HomeHandler(rw http.ResponseWriter, req *http.Request) {
 	t := template.New("layout.tpl")
 	t, err := t.ParseFiles("views/layout.tpl", "views/home.tpl")
 	if err != nil {
-		log.Error("%v", err)
+		log.Error(err)
 		http.Error(rw, "tpl error", 500)
 		return
 	}
 	Data := data{cnfg, "home"}
 	err = t.Execute(rw, Data)
 	if err != nil {
-		log.Error("%v", err)
+		log.Error(err)
 		http.Error(rw, "tpl error", 500)
 		return
 	}
@@ -80,14 +80,14 @@ func (ws *WebServer) UserHandler(rw http.ResponseWriter, req *http.Request) {
 		t := template.New("layout.tpl")
 		t, err := t.ParseFiles("views/layout.tpl", "views/user.tpl")
 		if err != nil {
-			log.Error("%v", err)
+			log.Error(err)
 			http.Error(rw, "tpl error", 500)
 			return
 		}
 		Data := data{cnfg, "user"}
 		err = t.Execute(rw, Data)
 		if err != nil {
-			log.Error("%v", err)
+			log.Error(err)
 			http.Error(rw, "tpl error", 500)
 			return
 		}
@@ -109,7 +109,7 @@ func (ws *WebServer) UserHandler(rw http.ResponseWriter, req *http.Request) {
 	}
 	err := cnfg.WriteToFile("config/config.json")
 	if err != nil {
-		log.Error("%v", err)
+		log.Error(err)
 	}
 }
 
@@ -126,14 +126,14 @@ func (ws *WebServer) SettingHandler(rw http.ResponseWriter, req *http.Request) {
 		t := template.New("layout.tpl")
 		t, err := t.ParseFiles("views/layout.tpl", "views/setting.tpl")
 		if err != nil {
-			log.Error("%v", err)
+			log.Error(err)
 			http.Error(rw, "tpl error", 500)
 			return
 		}
 		Data := data{cnfg, "setting"}
 		err = t.Execute(rw, Data)
 		if err != nil {
-			log.Error("%v", err)
+			log.Error(err)
 			http.Error(rw, "tpl error", 500)
 			return
 		}
@@ -155,7 +155,7 @@ func (ws *WebServer) SettingHandler(rw http.ResponseWriter, req *http.Request) {
 		gfwlist = strings.Trim(gfwlist, ";")
 		cnfg.GFWList = strings.Split(gfwlist, ";")
 		err := cnfg.WriteToFile("config/config.json")
-		log.Error("%v", err)
+		log.Error(err)
 		log.Debug("herre")
 		rw.WriteHeader(http.StatusOK)
 	}

@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-//var HTTP_407 = []byte("HTTP/1.1 407 Proxy Authorization Required\r\nProxy-Authenticate: Basic realm=\"Secure Proxys\"\r\n\r\n")
+var HTTP_407 = []byte("HTTP/1.1 407 Proxy Authorization Required\r\nProxy-Authenticate: Basic realm=\"Secure Proxys\"\r\n\r\n")
 
 //Auth provides basic authorizaton for proxy server.
 func (proxy *Handler) Auth(rw http.ResponseWriter, req *http.Request) bool {
@@ -73,15 +73,27 @@ func NeedAuth(rw http.ResponseWriter, challenge []byte) error {
 
 //反向代理到外部服务器，模仿其行为
 func AuthFailover(rw http.ResponseWriter, req *http.Request) {
-	hj, _ := rw.(http.Hijacker)
-	client, _, err := hj.Hijack() //获取客户端与代理服务器的tcp连接
-	if err != nil {
-		log.Error("%v failed to get Tcp connection of \n", "Unauthorized", req.RequestURI)
-		http.Error(rw, "Failed", http.StatusBadRequest)
-		return
+	// Send 407 if no failover is set
+	if cnfg.Failover == "" {
+		if _, err := rw.Write(HTTP_407); err != nil {
+			log.Error(err)
+			return
+		}
 	}
 
 	remote, err := net.Dial("tcp", cnfg.Failover) //建立failover和代理服务器的tcp连接
+	if err != nil {
+		log.Errorf("%s failed set up a connection to failover server.", "Unauthorized")
+		http.Error(rw, "Failed", http.StatusBadRequest)
+		return
+	}
+	hj, _ := rw.(http.Hijacker)
+	client, _, err := hj.Hijack() //获取客户端与代理服务器的tcp连接
+	if err != nil {
+		log.Errorf("%s failed to get Tcp connection of %s", "Unauthorized", req.RequestURI)
+		http.Error(rw, "Failed", http.StatusBadRequest)
+		return
+	}
 	// 将请求发送到 failover 服务器
 	req.Write(remote)
 	go copyRemoteToClient("Unauthorized", remote, client)
