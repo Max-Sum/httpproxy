@@ -1,4 +1,3 @@
 **/.git
 **/.vscode
-config/client.json
-config/config.json
+cnfg/client.json

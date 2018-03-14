@@ -4,10 +4,11 @@ MAINTAINER Max Sum <max@lolyculture.com>
 # Build app
 COPY . "$GOPATH/src/httpproxy"
 WORKDIR $GOPATH/src/httpproxy
-VOLUME $GOPATH/src/httpproxy/config
+VOLUME $GOPATH/src/httpproxy/cnfg
 
-RUN go get -t httpproxy
-RUN go build server.go
+RUN apk add --no-cache git \
+    && go get -t httpproxy \
+    && go build server.go
 
 EXPOSE 80
 CMD ["$GOPATH/src/httpproxy/server"]
