@@ -10,7 +10,7 @@ RUN apk add --no-cache git \
     && apk del git \
     && go build server.go \
     && mkdir /config \
-    && mv config/*.json /config \
+    && mv config/*.json /config
 
 VOLUME /config
 
