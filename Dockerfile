@@ -4,7 +4,6 @@ MAINTAINER Max Sum <max@lolyculture.com>
 # Build app
 COPY . "$GOPATH/src/httpproxy"
 WORKDIR $GOPATH/src/httpproxy
-
 # Build server
 RUN apk add --no-cache git \
     && go get -t httpproxy \
