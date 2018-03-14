@@ -6,8 +6,8 @@ COPY . "$GOPATH/src/httpproxy"
 WORKDIR $GOPATH/src/httpproxy
 
 RUN apk add --no-cache git \
-    && mkdir /config
-    && mv $GOPATH/src/httpproxy/config/*.json /config
+    && mkdir /config \
+    && mv $GOPATH/src/httpproxy/config/*.json /config \
     && go get -t httpproxy \
     && go build server.go
 
