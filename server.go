@@ -5,7 +5,6 @@ import (
 	"os/signal"
     "syscall"
 	"log"
-	"flag"
 	"net/http"
 
 	"httpproxy/proxy"
@@ -31,16 +30,4 @@ func main() {
 	go http.Serve(wln, web)
 	log.Println("begin proxy")
 	log.Fatal(pxy.Serve(pln))
-}
-
-func parseArguments() {
-	// Parse arguments
-	config := flag.String("c", "config/client.json", "config file")
-	listen := flag.String("l", "", "listening address")
-	webListen := flag.String("w", "", "web listening address")
-	reverse := flag.String("r", "", "reverse proxy to")
-	auth := flag.Bool("a", false, "if the proxy is going the check auth")
-	failover := flag.String("r", "", "reverse proxy to")
-	verbose := flag.Int("v", 1, "level of verbose")
-	flag.Parse()
 }
