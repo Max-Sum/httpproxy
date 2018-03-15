@@ -1,0 +1,13 @@
+{
+    "listen":"${PROXY_LISTEN}",
+    "weblisten":"${WEB_LISTEN}",
+    "reverse":${REVERSE_PROXY},
+    "proxy_pass":"${REVERSE_PROXY_ADDR}",
+    "auth":${PROXY_AUTHORIZATION},
+    "failover":"${PROXY_FAILOVER_ADDR}",
+    "cache": false,
+    "cache_timeout": 0,
+    "log": ${LOG_LEVEL},
+    "admin":"${ADMIN_PASSWORD}",
+    "users":{"${PROXY_USER}":"${PROXY_PASS}"}
+}
