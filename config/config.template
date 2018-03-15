@@ -1,13 +1,13 @@
 {
-    "listen":"${PROXY_LISTEN:-tcp://:80}",
-    "weblisten":"${WEB_LISTEN:-tcp://:8080}",
-    "reverse":${REVERSE_PROXY:-false},
-    "proxy_pass":"${REVERSE_PROXY_ADDR}",
-    "auth":${PROXY_AUTHORIZATION:-true},
+    "listen":"${PROXY_LISTEN}",
+    "weblisten":"${WEB_LISTEN}",
+    "reverse":${REVERSE},
+    "proxy_pass":"${REVERSE_PROXY}",
+    "auth":${PROXY_AUTHORIZATION},
     "failover":"${PROXY_FAILOVER_ADDR}",
     "cache": false,
     "cache_timeout": 0,
-    "log": ${LOG_LEVEL:-0},
-    "admin":"${ADMIN_PASSWORD:-proxy}",
-    "users":${PROXY_USER:-{}}
+    "log": ${LOG_LEVEL},
+    "admin":"${ADMIN_PASSWORD}",
+    "users":${PROXY_USER}
 }

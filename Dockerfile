@@ -11,4 +11,4 @@ RUN apk add --no-cache git gettext \
     && go build server.go
 
 EXPOSE 80
-CMD envsubst < config/config.template > config.json && ./server
+CMD ["./server.sh"]
