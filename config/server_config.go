@@ -40,10 +40,10 @@ type Config struct {
 	// 网站屏蔽列表
 	GFWList []string `json:"gfwlist"`
 
-	// 管理员账号
-	Admin map[string]string `json:"admin"`
+	// 管理员密码
+	AdminPass string `json:"admin"`
 	// 普通用户账户
-	User map[string]string `json:"user"`
+	User map[string]string `json:"users"`
 	// json 文件地址
 	path string
 }
@@ -51,6 +51,11 @@ type Config struct {
 
 // SetPath sets the path for the config file
 func (c *Config) SetPath(filename string) error {
+	// Set no config file
+	if filename == "" {
+		c.path = ""
+		return nil
+	}
 	configFile, err := os.Open(filename)
 	if err != nil {
 		return err
@@ -63,7 +68,6 @@ func (c *Config) SetPath(filename string) error {
 // GetConfig gets config from json file.
 // GetConfig 从指定json文件读取config配置
 func (c *Config) GetConfig() error {
-	c.Admin = make(map[string]string)
 	c.User = make(map[string]string)
 
 	configFile, err := os.Open(c.path)

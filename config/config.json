@@ -1,12 +1,14 @@
-{"listen":"tcp://:80",
-"weblisten":"tcp://:8080",
-"reverse":false,
-"proxy_pass":"127.0.0.1:80",
-"auth":true,
-"failover":"",
-"cache":false,
-"cache_timeout":60,
-"log":1,
-"gfwlist":[],
-"admin":{"Admin":"prxy"},
-"user":{"proxy":"proxy"}}
+{
+    "listen":"tcp://:80",
+    "weblisten":"tcp://:8080",
+    "reverse":false,
+    "proxy_pass":"127.0.0.1:80",
+    "auth":true,
+    "failover":"",
+    "cache":false,
+    "cache_timeout":60,
+    "log":1,
+    "gfwlist":[],
+    "admin":"proxy",
+    "users":{"proxy":"proxy"}
+}

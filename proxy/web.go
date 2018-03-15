@@ -1,7 +1,6 @@
 package proxy
 
 import (
-	"encoding/base64"
 	"errors"
 	"html/template"
 	"net/http"
@@ -165,33 +164,16 @@ func (ws *WebServer) SettingHandler(rw http.ResponseWriter, req *http.Request) {
 	}
 }
 
-// WebAuth
+// WebAuth checks the authorization
 func (ws *WebServer) WebAuth(rw http.ResponseWriter, req *http.Request) error {
-	auth := req.Header.Get("Authorization")
-	auth = strings.Replace(auth, "Basic ", "", 1)
-
-	if auth == "" {
+	_, passwd, ok := req.BasicAuth()
+	if !ok {
 		err := NeedAuth(rw, HTTP_401)
-		log.Debug("%v", err)
-		return errors.New("Need Authorization!")
-	}
-	data, err := base64.StdEncoding.DecodeString(auth)
-	if err != nil {
-		log.Debug("when decoding %v, got an error of %v", auth, err)
-		return errors.New("Fail to decoding WWWW-Authorization")
+		log.Debug(err)
+		return errors.New("Need Authorization")
 	}
 
-	var user, passwd string
-
-	userPasswdPair := strings.Split(string(data), ":")
-	if len(userPasswdPair) != 2 {
-		NeedAuth(rw, HTTP_401)
-		return errors.New(req.RemoteAddr + "Fail to log in")
-	} else {
-		user = userPasswdPair[0]
-		passwd = userPasswdPair[1]
-	}
-	if CheckAdmin(user, passwd) == false {
+	if passwd != cnfg.AdminPass {
 		NeedAuth(rw, HTTP_401)
 		return errors.New(req.RemoteAddr + "Fail to log in")
 	}
@@ -199,12 +181,3 @@ func (ws *WebServer) WebAuth(rw http.ResponseWriter, req *http.Request) error {
 }
 
 var HTTP_401 = []byte("HTTP/1.1 401 Authorization Required\r\nWWW-Authenticate: Basic realm=\"Secure Web\"\r\n\r\n")
-
-//CheckAdmin
-func CheckAdmin(user, passwd string) bool {
-	if user != "" && passwd != "" && cnfg.Admin[user] == passwd {
-		return true
-	} else {
-		return false
-	}
-}

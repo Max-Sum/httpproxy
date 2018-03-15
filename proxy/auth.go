@@ -1,11 +1,9 @@
 package proxy
 
 import (
-	"encoding/base64"
 	"errors"
 	"net"
 	"net/http"
-	"strings"
 )
 
 var HTTP_407 = []byte("HTTP/1.1 407 Proxy Authorization Required\r\nProxy-Authenticate: Basic realm=\"Secure Proxys\"\r\n\r\n")
@@ -15,7 +13,7 @@ func (proxy *Handler) Auth(rw http.ResponseWriter, req *http.Request) bool {
 	var err error
 	if cnfg.Reverse == false && cnfg.Auth == true { //代理服务器登入认证
 		if proxy.User, err = proxy.auth(rw, req); err != nil {
-			log.Debug("%v", err)
+			log.Debug(err)
 			return true
 		}
 	} else {
@@ -27,31 +25,12 @@ func (proxy *Handler) Auth(rw http.ResponseWriter, req *http.Request) bool {
 
 //Auth provides basic authorizaton for proxy server.
 func (proxy *Handler) auth(rw http.ResponseWriter, req *http.Request) (string, error) {
-
-	auth := req.Header.Get("Proxy-Authorization")
-	auth = strings.Replace(auth, "Basic ", "", 1)
-
-	if auth == "" {
+	user, pass, ok := req.BasicAuth()
+	if !ok {
 		AuthFailover(rw, req)
-		return "", errors.New("Need Proxy Authorization!")
+		return "", errors.New("Need Proxy Authorization")
 	}
-	data, err := base64.StdEncoding.DecodeString(auth)
-	if err != nil {
-		log.Debug("when decoding %v, got an error of %v", auth, err)
-		return "", errors.New("Fail to decoding Proxy-Authorization")
-	}
-
-	var user, passwd string
-
-	userPasswdPair := strings.Split(string(data), ":")
-	if len(userPasswdPair) != 2 {
-		AuthFailover(rw, req)
-		return "", errors.New("Fail to log in")
-	} else {
-		user = userPasswdPair[0]
-		passwd = userPasswdPair[1]
-	}
-	if Check(user, passwd) == false {
+	if Check(user, pass) == false {
 		AuthFailover(rw, req)
 		return "", errors.New("Fail to log in")
 	}
@@ -75,10 +54,8 @@ func NeedAuth(rw http.ResponseWriter, challenge []byte) error {
 func AuthFailover(rw http.ResponseWriter, req *http.Request) {
 	// Send 407 if no failover is set
 	if cnfg.Failover == "" {
-		if _, err := rw.Write(HTTP_407); err != nil {
-			log.Error(err)
-			return
-		}
+		NeedAuth(rw, HTTP_407)
+		return
 	}
 
 	remote, err := net.Dial("tcp", cnfg.Failover) //建立failover和代理服务器的tcp连接
@@ -104,7 +81,6 @@ func AuthFailover(rw http.ResponseWriter, req *http.Request) {
 func Check(user, passwd string) bool {
 	if user != "" && passwd != "" && cnfg.User[user] == passwd {
 		return true
-	} else {
-		return false
 	}
+	return false
 }
