@@ -44,7 +44,7 @@ func (proxy *Handler) auth(rw http.ResponseWriter, req *http.Request) (string, e
 	if len(userPasswdPair) != 2 {
 		AuthFailover(rw, req)
 		return "", errors.New("Fail to log in")
-
+	}
 	if Check(userPasswdPair[0], userPasswdPair[1]) == false {
 		AuthFailover(rw, req)
 		return "", errors.New("Fail to log in")
