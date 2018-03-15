@@ -1,9 +1,11 @@
 package proxy
 
 import (
+	"encoding/base64"
 	"errors"
 	"net"
 	"net/http"
+	"strings"
 )
 
 var HTTP_407 = []byte("HTTP/1.1 407 Proxy Authorization Required\r\nProxy-Authenticate: Basic realm=\"Secure Proxys\"\r\n\r\n")
@@ -25,16 +27,29 @@ func (proxy *Handler) Auth(rw http.ResponseWriter, req *http.Request) bool {
 
 //Auth provides basic authorizaton for proxy server.
 func (proxy *Handler) auth(rw http.ResponseWriter, req *http.Request) (string, error) {
-	user, pass, ok := req.BasicAuth()
-	if !ok {
+	auth := req.Header.Get("Proxy-Authorization")
+	auth = strings.Replace(auth, "Basic ", "", 1)
+
+	if auth == "" {
 		AuthFailover(rw, req)
-		return "", errors.New("Need Proxy Authorization")
+		return "", errors.New("Need Proxy Authorization!")
 	}
-	if Check(user, pass) == false {
+	data, err := base64.StdEncoding.DecodeString(auth)
+	if err != nil {
+		log.Debug("when decoding %v, got an error of %v", auth, err)
+		return "", errors.New("Fail to decoding Proxy-Authorization")
+	}
+
+	userPasswdPair := strings.Split(string(data), ":")
+	if len(userPasswdPair) != 2 {
+		AuthFailover(rw, req)
+		return "", errors.New("Fail to log in")
+
+	if Check(userPasswdPair[0], userPasswdPair[1]) == false {
 		AuthFailover(rw, req)
 		return "", errors.New("Fail to log in")
 	}
-	return user, nil
+	return userPasswdPair[0], nil
 }
 
 func NeedAuth(rw http.ResponseWriter, challenge []byte) error {
