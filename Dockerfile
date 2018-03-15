@@ -11,4 +11,4 @@ RUN apk add --no-cache git gettext \
     && go build server.go
 
 EXPOSE 80
-CMD ["./server.sh"]
+CMD ["/bin/""./server.sh"]
