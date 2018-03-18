@@ -36,6 +36,10 @@ type closeWrite interface {
 // And Close them when things ends.
 func CopyIO(dst, src net.Conn, terminate chan bool) {
 	defer func() {
+		// Recover from panic
+		if r := recover(); r != nil {
+            log.Errorf("CopyIO: recover from panic: %v", r)
+        }
 		// The first goroutine will only try to half close
 		// The second goroutine close both forcefully.
 		select {
