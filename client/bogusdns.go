@@ -35,6 +35,7 @@ type bogusItem struct {
 type requestItem struct {
 	ip     uint16
 	domain string
+	result chan bool
 }
 
 // NewBogusDNS creates a new BogusDNS Server
@@ -76,24 +77,29 @@ func (s *BogusDNS) asgnRoutine() {
 		if !ok {
 			break
 		}
-		// Assignement
+		// If the IP is occupied
+		current := s.IPIndex[req.ip]
+		if current != nil && current.domain != req.domain &&
+			current.ctime.Add(s.TTL).Before(time.Now()) {
+			req.result <- false
+		}
+		// Assignment
 		s.IPIndex[req.ip] = &bogusItem{
 			domain: req.domain,
 			ctime:  time.Now(),
 		}
+		req.result <- true
 	}
 }
 
 // try to assign the item
 func (s *BogusDNS) tryAssign(ip uint16, domain string) bool {
-	current := s.IPIndex[ip]
-	// If the IP is occupied
-	if current != nil && current.domain != domain &&
-		current.ctime.Add(s.TTL).Before(time.Now()) {
-		return false
-	}
-	s.requestChan <- &requestItem{ip: ip, domain: domain}
-	return true
+	// Make a result channel for return
+	result := make(chan bool)
+	defer close(result)
+	// single thread for writing in DB
+	s.requestChan <- &requestItem{ip: ip, domain: domain, result: result}
+	return <- result
 }
 
 func (s *BogusDNS) toIP(ip uint16) net.IP {
@@ -135,6 +141,8 @@ func (s *BogusDNS) GetIP(domain string) (net.IP, error) {
 			if s.tryAssign(ip, domain) {
 				return s.toIP(ip), nil
 			}
+			// Give another IP
+			continue
 		}
 		if s.IPIndex[ip].domain == domain {
 			// Refresh the item
