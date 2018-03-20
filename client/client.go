@@ -181,7 +181,6 @@ func (p *HTTPProxyClient) Dial(targetAddr string) (net.Conn, error) {
 	}
 	resp, err := http.ReadResponse(bufio.NewReader(conn), &http.Request{Method: http.MethodConnect})
 	if err != nil {
-		p.Pool.Put(conn)
 		log.Error("HTTP Proxy: Failed to read response", err)
 		return nil, err
 	}
@@ -208,17 +207,22 @@ func (p *HTTPProxyClient) Redirect(srcConn net.Conn, targetAddr string) error {
 	go CopyIO(conn, srcConn, ch)
 	resp, err := http.ReadResponse(bufio.NewReader(conn), &http.Request{Method: http.MethodConnect})
 	if err != nil {
-		p.Pool.Put(conn)
+		srcConn.Close()
+		conn.Close()
+		// Unlock the channel
+		<-ch
 		return err
 	}
 	if resp.StatusCode != http.StatusOK {
 		f := strings.SplitN(resp.Status, " ", 2)
-		p.Pool.Put(conn)
+		srcConn.Close()
+		conn.Close()
+		// Unlock the channel
+		<-ch
 		return fmt.Errorf(f[1])
 	}
 	// Start to copy other
 	go CopyIO(srcConn, conn, ch)
-	// Send Signal to the first go routine.
 	return nil
 }
 

@@ -36,7 +36,7 @@ type closeWrite interface {
 func CopyIO(dst, src net.Conn, terminate chan bool) {
 	defer func() {
 		// The first goroutine will only try to half close
-		// The second goroutine close both forcefully.
+		// The second goroutine close both.
 		select {
 		// lock
 		case terminate <- true:
@@ -48,25 +48,21 @@ func CopyIO(dst, src net.Conn, terminate chan bool) {
 				cr.CloseRead()
 			}
 		default:
+			// unlock
+			<-terminate
 			log.Debugf("CopyIO: Close %s -> %s", src.RemoteAddr(), dst.RemoteAddr())
 			dst.Close()
 			src.Close()
-			// unlock
-			<-terminate
 			return
 		}
-		// Wait for the second goroutine to close the channel
+		// if channel is not unlock after 5 seconds
+		// should force close them
 		select {
-		case terminate <- true:
+		case terminate <- false:
 		case <-time.After(5 * time.Second):
 			log.Debugf("CopyIO: Force Close %s -> %s", dst.RemoteAddr(), src.RemoteAddr())
 			dst.Close()
 			src.Close()
-		}
-		close(terminate)
-		// Recover from panic
-		if r := recover(); r != nil {
-			log.Errorf("CopyIO: recover from panic: %v", r)
 		}
 	}()
 	bytes, err := io.Copy(dst, src)
