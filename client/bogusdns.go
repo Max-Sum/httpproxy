@@ -42,7 +42,7 @@ type requestItem struct {
 func NewBogusDNS(addr string, prefix net.IP, ttl time.Duration) *BogusDNS {
 	ret := &BogusDNS{
 		srv:         dns.Server{Addr: addr, Net: "udp"},
-		requestChan: make(chan *requestItem),
+		requestChan: make(chan *requestItem, 5),
 		IPPrefix:    prefix,
 		DNSTTL:      ttl,
 		TTL:         2 * ttl,
@@ -96,13 +96,13 @@ func (s *BogusDNS) asgnRoutine() {
 func (s *BogusDNS) tryAssign(ip uint16, domain string) bool {
 	// single thread for writing in DB
 	requestItem := requestItem{
-		ip: ip,
+		ip:     ip,
 		domain: domain,
 		result: make(chan bool),
 	}
 	defer close(requestItem.result)
 	s.requestChan <- &requestItem
-	return <- requestItem.result
+	return <-requestItem.result
 }
 
 func (s *BogusDNS) toIP(ip uint16) net.IP {
