@@ -9,6 +9,7 @@ RUN apk add --no-cache git gettext \
     && go get -t httpproxy \
     && apk del git \
     && go build server.go
+    && touch config/config.json && chmod 0777 config/config.json
 
 EXPOSE 80
 CMD ["./server.sh"]
