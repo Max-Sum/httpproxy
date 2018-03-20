@@ -94,12 +94,15 @@ func (s *BogusDNS) asgnRoutine() {
 
 // try to assign the item
 func (s *BogusDNS) tryAssign(ip uint16, domain string) bool {
-	// Make a result channel for return
-	result := make(chan bool)
-	defer close(result)
 	// single thread for writing in DB
-	s.requestChan <- &requestItem{ip: ip, domain: domain, result: result}
-	return <- result
+	requestItem := requestItem{
+		ip: ip,
+		domain: domain,
+		result: make(chan bool),
+	}
+	defer close(requestItem.result)
+	s.requestChan <- &requestItem
+	return <- requestItem.result
 }
 
 func (s *BogusDNS) toIP(ip uint16) net.IP {
