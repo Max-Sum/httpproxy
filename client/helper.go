@@ -3,8 +3,8 @@ package client
 import (
 	"io"
 	"net"
-	"net/url"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -13,7 +13,6 @@ var portMap = map[string]string{
 	"https":  "443",
 	"socks5": "1080",
 }
-
 
 // canonicalAddr returns url.Host but always with a ":port" suffix
 func canonicalAddr(url *url.URL) string {
@@ -36,16 +35,12 @@ type closeWrite interface {
 // And Close them when things ends.
 func CopyIO(dst, src net.Conn, terminate chan bool) {
 	defer func() {
-		// Recover from panic
-		if r := recover(); r != nil {
-            log.Errorf("CopyIO: recover from panic: %v", r)
-        }
 		// The first goroutine will only try to half close
 		// The second goroutine close both forcefully.
 		select {
 		// lock
 		case terminate <- true:
-			log.Debugf("CopyIO: HalfClose %s <-> %s", dst.RemoteAddr(), src.RemoteAddr())
+			log.Debugf("CopyIO: HalfClose %s -> %s", src.RemoteAddr(), dst.RemoteAddr())
 			if cw, ok := dst.(closeWrite); ok {
 				cw.CloseWrite()
 			}
@@ -53,21 +48,25 @@ func CopyIO(dst, src net.Conn, terminate chan bool) {
 				cr.CloseRead()
 			}
 		default:
-			log.Debugf("CopyIO: Close %s <-> %s", dst.RemoteAddr(), src.RemoteAddr())
+			log.Debugf("CopyIO: Close %s -> %s", src.RemoteAddr(), dst.RemoteAddr())
 			dst.Close()
 			src.Close()
 			// unlock
-			<- terminate
-			close(terminate)
+			<-terminate
 			return
 		}
 		// Wait for the second goroutine to close the channel
 		select {
 		case terminate <- true:
-		case <- time.After(5 * time.Second):
-			log.Debugf("CopyIO: Force Close %s <-> %s", dst.RemoteAddr(), src.RemoteAddr())
+			close(terminate)
+		case <-time.After(5 * time.Second):
+			log.Debugf("CopyIO: Force Close %s -> %s", dst.RemoteAddr(), src.RemoteAddr())
 			dst.Close()
 			src.Close()
+		}
+		// Recover from panic
+		if r := recover(); r != nil {
+			log.Errorf("CopyIO: recover from panic: %v", r)
 		}
 	}()
 	bytes, err := io.Copy(dst, src)
@@ -87,7 +86,6 @@ func CopyHeaders(dst, src http.Header) {
 		}
 	}
 }
-
 
 func SanitizeRequest(req *http.Request) {
 	if req.URL.Scheme == "" {
