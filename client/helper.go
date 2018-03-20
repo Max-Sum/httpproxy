@@ -58,12 +58,12 @@ func CopyIO(dst, src net.Conn, terminate chan bool) {
 		// Wait for the second goroutine to close the channel
 		select {
 		case terminate <- true:
-			close(terminate)
 		case <-time.After(5 * time.Second):
 			log.Debugf("CopyIO: Force Close %s -> %s", dst.RemoteAddr(), src.RemoteAddr())
 			dst.Close()
 			src.Close()
 		}
+		close(terminate)
 		// Recover from panic
 		if r := recover(); r != nil {
 			log.Errorf("CopyIO: recover from panic: %v", r)
