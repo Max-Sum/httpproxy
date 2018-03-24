@@ -7,16 +7,20 @@ WORKDIR $GOPATH/src/httpproxy
 # Build server
 RUN apk add --update git \
     && go get -t httpproxy \
-    && go build server.go
+    && go build -o /server server.go
 
 # final stage
 FROM alpine
 
-COPY --from=build-env /go/src/httpproxy/server /
-ADD ./server.sh /
-ADD ./static /
-ADD ./views /
+COPY --from=build-env /server /app/
+ADD ./server.sh /app/
+ADD ./config/config.template /app/
+ADD ./static /app/
+ADD ./views /app/
 
-RUN apk add --no-cache gettext
+RUN apk add --no-cache gettext \
+    && chmod 777 /app
 
-CMD ["/server.sh"]
+WORKDIR /app
+
+CMD ["./server.sh"]

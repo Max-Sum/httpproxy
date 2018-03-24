@@ -9,5 +9,5 @@ export LOG_LEVEL=${LOG_LEVEL:-0}
 export ADMIN_PASSWORD=${ADMIN_PASSWORD:-proxy}
 export PROXY_USER=${PROXY_USER:-{}}
 
-envsubst < config/config.template > config/config.json
-exec ./server -c config/config.json
+envsubst < config.template > config.json
+exec ./server -c config.json
