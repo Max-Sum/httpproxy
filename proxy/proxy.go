@@ -41,6 +41,7 @@ func NewProxyServer() *http.Server {
 		},
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
+		IdleTimeout:    15 * time.Minute,
 		MaxHeaderBytes: 1 << 20,
 	}
 }
